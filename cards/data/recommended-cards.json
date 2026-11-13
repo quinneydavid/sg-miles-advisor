@@ -1,0 +1,30 @@
+{
+  "_doc": "A sample of sign-up offers, loaded by `seed` and shown on the Offers page until the catalogue run reads the current ones. Read on the date in `checked` from milelion.com, mainlymiles.com and the banks' own pages; the promotion terms were not all read, so check an offer with the bank. existing = who the offer is for. cardup = whether a payment through CardUp counts toward the minimum spend. cents_per_mile = (minimum spend x 2.45% CardUp fee + any payable annual fee) / bonus miles, the sum catalogue.offer_cost makes.",
+  "checked": "2026-11-07",
+  "cards": [
+    {"name": "AMEX KrisFlyer Credit Card", "bonus": 16000, "min_spend": 2000, "window": "90 days", "ends": "2027-01-31",
+     "fee": "S$179.85, first year waived", "existing": "new-to-AMEX customers only; an AMEX card issued by a bank does not count as holding one",
+     "cardup": "counts", "cents_per_mile": 0.31, "base_mpd": 1.1,
+     "source": "https://milelion.com/credit-cards/current-credit-card-sign-up-bonuses/"},
+    {"name": "StanChart Visa Infinite", "bonus": 50000, "min_spend": 2000, "window": "60 days", "ends": "2027-02-01",
+     "fee": "S$599.50, payable", "existing": "new and existing customers", "cardup": "counts",
+     "cents_per_mile": 1.3, "base_mpd": 1.4,
+     "source": "https://milelion.com/2026/10/03/standard-chartered-visa-infinite-offering-50000-miles-sign-up-bonus/"},
+    {"name": "UOB Visa Infinite Metal", "bonus": 40000, "min_spend": 4000, "window": "30 days", "ends": "2026-12-31",
+     "fee": "S$654, payable (25,000 of the bonus miles are for paying it)", "existing": "existing UOB cardholders get 40,000 miles; customers new to UOB get 60,000",
+     "cardup": "counts", "cents_per_mile": 1.88, "base_mpd": 1.4,
+     "source": "https://www.uob.com.sg/personal/promotions/cards/sign-up-offers/visa-infinite-metal.page"},
+    {"name": "StanChart Beyond", "bonus": 100000, "min_spend": 20000, "window": "90 days", "ends": "2027-03-31",
+     "fee": "S$1,635, payable", "existing": "new and existing customers", "cardup": "not confirmed",
+     "cents_per_mile": 2.12, "base_mpd": 1.5,
+     "source": "https://milelion.com/2026/03/31/stanchart-beyond-card-extends-100000-miles-welcome-offer/"},
+    {"name": "Citi Prestige", "bonus": 45000, "min_spend": 14000, "window": "by end of 2nd month after approval", "ends": "2026-11-30",
+     "fee": "S$651.82, payable", "existing": "new and existing Citi cardholders", "cardup": "not confirmed",
+     "cents_per_mile": 2.21, "base_mpd": 1.3,
+     "source": "https://mainlymiles.com/2026/07/02/citi-prestige-extends-45000-miles-sign-up-bonus/"},
+    {"name": "HSBC TravelOne (or Revolution)", "bonus": 30000, "min_spend": 1000, "window": "see T&C", "ends": "2026-12-31",
+     "fee": "S$196.20, payable (Revolution: no annual fee, 16,800 miles)", "existing": "30,000 (new-to-bank) or 20,000 (existing customer) miles",
+     "cardup": "does not count: HSBC cards earn nothing on CardUp", "cents_per_mile": 0.74, "base_mpd": 1.2,
+     "source": "https://milelion.com/2026/11/06/milelion-weekly-deal-summary-31-oct-to-6-nov-26/"}
+  ]
+}

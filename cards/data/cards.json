@@ -1,0 +1,1072 @@
+{
+  "_doc": "Hand-checked card earn rules (KrisFlyer miles per S$). Verified 7 Nov 2026 against bank pages, milelion.com and mainlymiles.com (10 Nov 2026: every card here except OCBC Rewards re-read against the bank's own terms). Keys = card ids. A bucket earns its mpd while its cap has room; the first bucket that matches wins (order = priority). match: mcc (list, ranges 'a-b'), merchant (regex on the merchant text), fcy (true = foreign currency), channel (contactless|mobile|online|any; alerts rarely say, so default_channel = the way of paying that earns the card's bonus). cap = S$ of eligible spend per period (calendar month or statement period). min_spend: bonus only when the bucket's period spend reaches it (shown as provisional until then). rounding: per_txn_5 = floor(S$/5) blocks per transaction, pooled = the period total is rounded once, per_1 = floor to S$1. Promos carry 'until'. no_assume: a merchant with NO known MCC is assumed to earn the bonus of the card it was paid with, except in buckets marked no_assume (SIA, petrol) or matched by merchant name only. assume_fcy: a card kept for foreign charges only, so a line counts as foreign currency unless its text says Singapore.",
+  "_verified": "2026-11-07",
+  "exclusion_sets": {
+    "common": {
+      "mcc": [
+        "4900",
+        "5960",
+        "6300",
+        "6381",
+        "6399",
+        "8211-8299",
+        "8062",
+        "8398",
+        "8661",
+        "8651",
+        "9211",
+        "9222",
+        "9223",
+        "9311",
+        "9399",
+        "9402",
+        "7995",
+        "6211",
+        "6051",
+        "6540",
+        "4829",
+        "7523"
+      ],
+      "merchant": [
+        "\\bEZ-?LINK\\b",
+        "FLASHPAY",
+        "GRABPAY|GRAB\\s*TOP",
+        "YOUTRIP",
+        "\\bAXS\\b",
+        "SINGPOST.?SAM",
+        "IPAYMY",
+        "RAZER\\s*PAY",
+        "\\bAMAZE\\b",
+        "SHOPEEPAY",
+        "SINGTEL\\s*DASH"
+      ],
+      "_note": "utilities, insurance, education, hospitals, charity/religious/political, government/tax, gambling, brokerage, quasi-cash, wire transfers, parking + wallet/bill top-ups. Bank-specific additions below."
+    }
+  },
+  "cards": {
+    "dbs_womens_world": {
+      "name": "DBS Woman's World",
+      "programme": "DBS_POINTS",
+      "points_per_mile": 0.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 1.2
+      },
+      "default_channel": "online",
+      "exclude": [
+        "common"
+      ],
+      "exclude_mcc": [
+        "6513",
+        "6050",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "8699",
+        "5047",
+        "4784",
+        "5199",
+        "5993",
+        "6010",
+        "6011",
+        "6012",
+        "7511",
+        "8999",
+        "9405"
+      ],
+      "exclude_merchant": [
+        "CARDUP"
+      ],
+      "buckets": [
+        {
+          "id": "online",
+          "label": "Online",
+          "mpd": 4.0,
+          "match": {
+            "channel": "online",
+            "not_mcc": [
+              "0763",
+              "7261",
+              "7276",
+              "7311",
+              "7322",
+              "7339",
+              "7372",
+              "7375",
+              "7393",
+              "7399",
+              "8111",
+              "8911",
+              "8931"
+            ]
+          },
+          "cap": 1000,
+          "period": "calendar",
+          "rounding": "pooled",
+          "tier_basis": "not for these MCCs, which keep the base rate (Woman's Card T&C, Table 1, updated 5 Nov 2026); CardUp and ipaymy also earn only the base rate"
+        }
+      ],
+      "notes": "Online 4 mpd on the first S$1,000 a calendar month (by transaction date = the merchant's settlement date; supplementary cards share the cap). Above the cap: 0.4 local / 1.2 foreign. Points expire after 1 year. Checked against DBS's Woman's Card T&C (updated 5 Nov 2026) on 10 Nov 2026.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (DBS Rewards Programme T&C, Table 1), found by the T&C check: 4784, 5199, 5993, 6010, 6011, 6012, 7511, 8999, 9405"
+    },
+    "dbs_vantage": {
+      "name": "DBS Vantage",
+      "programme": "DBS_POINTS",
+      "points_per_mile": 0.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 1.4,
+        "fcy": 2.2
+      },
+      "exclude": [
+        "common"
+      ],
+      "exclude_mcc": [
+        "6513",
+        "4784",
+        "5047",
+        "5199",
+        "5993",
+        "6010",
+        "6011",
+        "6012",
+        "6050",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "7511",
+        "8699",
+        "8999",
+        "9405"
+      ],
+      "buckets": [],
+      "notes": "1.4 mpd local (3.5 DBS Points per S$5), 2.2 mpd foreign currency (5.5 per S$5): card T&C last updated 2 Nov 2026 (the Rewards T&C of Sep 2026 still prints 3.75 per S$5). No cap stated. Points expire 3 years after earning. 12,500 points with each paid annual fee. Checked against DBS's own documents on 10 Nov 2026.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (DBS Rewards Programme T&C, Table 1, Sep 2026): 4784, 5047, 5199, 5993, 6010, 6011, 6012, 6050, 6529, 6530, 6534, 7349, 7511, 8699, 8999, 9405"
+    },
+    "uob_prvi_miles_visa": {
+      "name": "UOB PRVI Miles Visa",
+      "programme": "UNI",
+      "points_per_mile": 0.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 1.4,
+        "fcy": 2.4
+      },
+      "exclude": [
+        "common"
+      ],
+      "exclude_mcc": [
+        "5199",
+        "5965",
+        "5993",
+        "6012",
+        "6050",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "7511",
+        "8699",
+        "8999",
+        "9405"
+      ],
+      "exclude_merchant": [
+        "\\bSPC\\b",
+        "\\bSHELL\\b",
+        "^TRANSIT",
+        "NETS\\s*VCASHCARD",
+        "SMOOVE\\s*PAY",
+        "RWS-?LEVY",
+        "^NORWDS",
+        "SKRILL|MONEYBOOKERS",
+        "OANDA|IGMARKETS|SAXO\\s*CAP|SKYFX"
+      ],
+      "buckets": [
+        {
+          "id": "agoda",
+          "label": "Agoda hotels via agoda.com/prvimiles (8 mpd when charged in foreign currency)",
+          "mpd": 7.0,
+          "match": {
+            "merchant": [
+              "AGODA"
+            ]
+          },
+          "until": "2027-08-15",
+          "provisional": "only bookings made through agoda.com/prvimiles and paid to Agoda (not Japan stays, not pay-at-hotel); bonus UNI$ credited within 3 months after the stay"
+        },
+        {
+          "id": "regional",
+          "label": "Indonesia, Malaysia, Thailand, Vietnam: charged in IDR, MYR, THB or VND",
+          "mpd": 3.0,
+          "match": {
+            "fcy": true,
+            "currency": [
+              "IDR",
+              "MYR",
+              "THB",
+              "VND"
+            ]
+          }
+        }
+      ],
+      "notes": "Uncapped, no minimum. SGD 1.4 mpd (UNI$3.5 per S$5), foreign currency 2.4 mpd (UNI$6 per S$5, payment gateway outside Singapore); IDR / MYR / THB / VND earn 3 mpd (UNI$7.5 per S$5). Expedia via expedia.com.sg/prvimiles: hotels and activities 8 mpd, listed airlines 3 mpd, booked 1 Apr 2026-31 Mar 2027 (not modelled). No UNI$ at SPC or Shell. UNI$ per transaction, S$5 blocks, rounded down. Annual fee S$261.60 (or UNI$6,500). Checked against UOB's own documents on 11 Nov 2026: Terms and Conditions Governing UOB PRVI Miles Card (exclusions, Agoda and Expedia perks) and the UOB Rewards+ T&C (earn rates).",
+      "_exclude_bank_doc": "11 Nov 2026: from the bank's own document (Terms and Conditions Governing UOB PRVI Miles Card, clause 1(ii))"
+    },
+    "uob_visa_signature": {
+      "name": "UOB Visa Signature",
+      "programme": "UNI",
+      "points_per_mile": 0.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 0.4
+      },
+      "default_channel": "contactless",
+      "_channel_why": "in-person spend is taken as contactless (the bonus needs a tap, not a swipe or chip)",
+      "exclude": [
+        "common"
+      ],
+      "exclude_mcc": [
+        "5965",
+        "5993",
+        "8699",
+        "8999",
+        "5199",
+        "6012",
+        "6050",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "7511",
+        "9405"
+      ],
+      "exclude_merchant": [
+        "PAYPAL\\s*\\*"
+      ],
+      "buckets": [
+        {
+          "id": "fcy",
+          "label": "Overseas (FCY)",
+          "mpd": 4.0,
+          "match": {
+            "fcy": true
+          },
+          "cap": 1200,
+          "min_spend": 1000,
+          "period": "statement",
+          "rounding": "pooled"
+        },
+        {
+          "id": "local",
+          "label": "Contactless + petrol + SimplyGo",
+          "mpd": 4.0,
+          "match": {
+            "any_of": [
+              {
+                "channel": "contactless"
+              },
+              {
+                "mcc": [
+                  "5541",
+                  "5542"
+                ]
+              },
+              {
+                "merchant": [
+                  "SIMPLYGO|BUS/MRT"
+                ]
+              }
+            ],
+            "not_merchant": [
+              "\\bSPC\\b",
+              "\\bSHELL\\b"
+            ]
+          },
+          "cap": 1200,
+          "min_spend": 1000,
+          "period": "statement",
+          "rounding": "pooled",
+          "tier_basis": "no bonus at SPC or Shell, however paid (UOB Visa Signature T&C)"
+        }
+      ],
+      "notes": "Min S$1,000 AND cap S$1,200 PER bucket per statement period (posting date); buckets don't combine. Physical-card or phone tap both count; chip/swipe = base. FCY billed in SGD (DCC) = base. Since 1 Sep 2025.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Rewards+ T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405"
+    },
+    "uob_preferred_platinum": {
+      "name": "UOB Preferred Visa",
+      "programme": "UNI",
+      "points_per_mile": 0.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 0.4
+      },
+      "default_channel": "mobile",
+      "_channel_why": "the bonus needs Apple/Google Pay (4 mpd); the physical card earns 0.4",
+      "exclude": [
+        "common"
+      ],
+      "exclude_mcc": [
+        "5965",
+        "5993",
+        "8699",
+        "8999",
+        "5199",
+        "6012",
+        "6050",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "7511",
+        "9405"
+      ],
+      "exclude_merchant": [
+        "\\bSPC\\b",
+        "\\bSHELL\\b",
+        "PAYPAL\\s*\\*"
+      ],
+      "buckets": [
+        {
+          "id": "online",
+          "label": "Selected online",
+          "mpd": 4.0,
+          "match": {
+            "channel": "online",
+            "mcc": [
+              "5311",
+              "4816",
+              "5262",
+              "5306",
+              "5309",
+              "5310",
+              "5331",
+              "5399",
+              "5611",
+              "5621",
+              "5631",
+              "5641",
+              "5651",
+              "5661",
+              "5691",
+              "5699",
+              "5732",
+              "5733",
+              "5734",
+              "5735",
+              "5912",
+              "5942",
+              "5944",
+              "5945",
+              "5946",
+              "5947",
+              "5948",
+              "5949",
+              "5964",
+              "5966",
+              "5967",
+              "5968",
+              "5969",
+              "5970",
+              "5992",
+              "5999",
+              "5333",
+              "5411",
+              "9751",
+              "5441",
+              "5462",
+              "5499",
+              "5811",
+              "5812",
+              "5814",
+              "8012",
+              "7278",
+              "7832",
+              "7841",
+              "7922",
+              "7991",
+              "7996",
+              "7998",
+              "7999"
+            ]
+          },
+          "cap": 600,
+          "period": "calendar"
+        },
+        {
+          "id": "mobile",
+          "label": "Mobile contactless + SimplyGo",
+          "mpd": 4.0,
+          "match": {
+            "any_of": [
+              {
+                "channel": "mobile"
+              },
+              {
+                "merchant": [
+                  "SIMPLYGO|BUS/MRT"
+                ]
+              }
+            ]
+          },
+          "cap": 600,
+          "period": "calendar"
+        }
+      ],
+      "notes": "Renamed from Preferred Platinum 10 Mar 2026. S$600 per bucket per calendar month (posting date) since 1 Oct 2025. PHYSICAL CARD TAP = 0.4 (only Apple/Google/Samsung Pay earns 4). Recurring payments excluded from online.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Rewards+ T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405"
+    },
+    "uob_lady_solitaire": {
+      "name": "UOB Lady's Solitaire",
+      "programme": "UNI",
+      "points_per_mile": 0.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 0.4
+      },
+      "exclude": [
+        "common"
+      ],
+      "exclude_mcc": [
+        "5965",
+        "5993",
+        "8699",
+        "8999",
+        "5199",
+        "6012",
+        "6050",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "7511",
+        "9405"
+      ],
+      "exclude_merchant": [
+        "PAYPAL\\s*\\*"
+      ],
+      "boost": {
+        "account": "uob_lady_savings",
+        "rule": "monthly average day-end balance",
+        "tiers": [
+          [
+            10000,
+            2.0
+          ],
+          [
+            50000,
+            4.0
+          ],
+          [
+            100000,
+            6.0
+          ]
+        ],
+        "applies_to": [
+          "dining",
+          "transport"
+        ]
+      },
+      "buckets": [
+        {
+          "id": "dining",
+          "label": "Dining",
+          "mpd": 4.0,
+          "match": {
+            "mcc": [
+              "5811",
+              "5812",
+              "5814",
+              "5499"
+            ]
+          },
+          "cap": 750,
+          "period": "calendar",
+          "rounding": "pooled"
+        },
+        {
+          "id": "transport",
+          "label": "Transport",
+          "mpd": 4.0,
+          "match": {
+            "mcc": [
+              "4111",
+              "4121",
+              "4789",
+              "5541",
+              "5542"
+            ]
+          },
+          "cap": 750,
+          "period": "calendar",
+          "rounding": "pooled"
+        }
+      ],
+      "notes": "Example categories: Dining + Transport (the cardholder picks two; edit the bucket for other picks). Card 4 mpd + Lady's Savings boost: MAB S$10K-49,999 = +2 (6 mpd), 50K = +4, 100K = +6; boost within the same S$750 caps, credited monthly with the card bonus. Caps per calendar month (posting date) since 1 Aug 2025.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Lady's Cards T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405"
+    },
+    "uob_krisflyer_cc": {
+      "name": "KrisFlyer UOB",
+      "programme": "KF",
+      "points_per_mile": 1.0,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 1.2,
+        "fcy": 1.2
+      },
+      "exclude": [
+        "common"
+      ],
+      "exclude_merchant": [
+        "\\bSPC\\b"
+      ],
+      "buckets": [
+        {
+          "id": "sia",
+          "no_assume": true,
+          "label": "Singapore Airlines / Scoot / KrisShop / Kris+ / Pelago",
+          "mpd": 3.0,
+          "match": {
+            "mcc": [
+              "3075"
+            ],
+            "merchant": [
+              "SINGAPORE\\s*AIR|\\bSIA\\b|SCOOT|KRISSHOP|KRIS\\+|KRISPLUS|PELAGO"
+            ]
+          }
+        },
+        {
+          "id": "accelerated",
+          "label": "Dining, delivery, online shopping, OTA, transport",
+          "mpd": 2.4,
+          "provisional": "needs S$1,000 on Singapore Airlines / Scoot / KrisShop in the card membership year (Kris+ and Pelago don't count); the extra 1.2 is awarded the month after the membership year ends",
+          "match": {
+            "any_of": [
+              {
+                "mcc": [
+                  "5812",
+                  "5813",
+                  "5814",
+                  "4121"
+                ]
+              },
+              {
+                "merchant": [
+                  "GRAB\\s*FOOD|DELIVEROO|DELIVERY\\s*HERO|FOODPANDA|AGODA|AIRBNB|BOOKING\\.COM|\\bB\\.COM|EXPEDIA|HOTELS?\\s*\\.?\\s*COM|KALIGO|TRAVELOKA|TRIP\\.COM|WWW\\s+TRIP\\s+COM|BUS/MRT|SIMPLYGO"
+                ]
+              },
+              {
+                "channel": "online",
+                "mcc": [
+                  "4816",
+                  "5262",
+                  "5306",
+                  "5309",
+                  "5310",
+                  "5311",
+                  "5331",
+                  "5399",
+                  "5611",
+                  "5621",
+                  "5631",
+                  "5641",
+                  "5651",
+                  "5661",
+                  "5691",
+                  "5699",
+                  "5732",
+                  "5733",
+                  "5735",
+                  "5912",
+                  "5942",
+                  "5944",
+                  "5945",
+                  "5946",
+                  "5947",
+                  "5948",
+                  "5949",
+                  "5999"
+                ],
+                "_why": "KrisFlyer UOB T&C v1.4 (1 Jul 2026) cl. 13 Online Shopping; groceries, 5734, 5964-5970, 5992, cinema and ticketing are not in it"
+              },
+              {
+                "channel": "online",
+                "merchant": [
+                  "SHOPEE|LAZADA|QOO10"
+                ],
+                "_why": "cl. 13: MCC 7278 only at these three"
+              }
+            ]
+          }
+        }
+      ],
+      "notes": "Miles are worked out per calendar month and go straight to KrisFlyer. 2.4 mpd on dining, food delivery, online shopping and travel, transport once S$1,000 is spent on Singapore Airlines, Scoot or KrisShop in the membership year. No miles at UOB$ merchants or SPC. Paying the annual fee gives 10,000 miles. KrisShop +2 mpd and the Pelago bonus end 31 Dec 2026. Checked against UOB's KrisFlyer UOB Credit Card T&C v1.4 (1 Jul 2026) on 10 Nov 2026.",
+      "exclude_mcc": [
+        "5199",
+        "5965",
+        "5993",
+        "6012",
+        "6050",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "7349",
+        "7511",
+        "8011",
+        "8099",
+        "8699",
+        "8999",
+        "9405"
+      ],
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (KrisFlyer UOB Credit Card T&C, clause 1.10), found by the T&C check: 5199, 5965, 5993, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 8011, 8099, 8699, 8999, 9405"
+    },
+    "maybank_world": {
+      "name": "Maybank World Mastercard",
+      "exclude_mcc": [
+        "4900",
+        "5960",
+        "6300",
+        "6381",
+        "6399",
+        "8398",
+        "8661",
+        "8651",
+        "9211",
+        "9222",
+        "9223",
+        "9311",
+        "9399",
+        "9402",
+        "7995",
+        "6211",
+        "6051",
+        "6540",
+        "4829",
+        "7523",
+        "6012",
+        "6050",
+        "6529",
+        "6530",
+        "6534",
+        "6010",
+        "6011",
+        "7511",
+        "7349"
+      ],
+      "_exclude_why": "Replaces the common set: common exclusions EXCEPT education (8211-8299) and hospitals (8062): World earns on them (0.4 SGD, FCY tiers), per milelion review 27 Sep 2026",
+      "programme": "TREATS",
+      "points_per_mile": 2.5,
+      "rounding": "per_txn_5",
+      "assume_fcy": true,
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 0.4
+      },
+      "exclude": [],
+      "exclude_merchant": [
+        "\\bEZ-?LINK\\b",
+        "FLASHPAY",
+        "GRABPAY|GRAB\\s*TOP",
+        "YOUTRIP",
+        "\\bAXS\\b",
+        "SINGPOST.?SAM",
+        "IPAYMY",
+        "RAZER\\s*PAY",
+        "\\bAMAZE\\b",
+        "SHOPEEPAY",
+        "SINGTEL\\s*DASH"
+      ],
+      "buckets": [
+        {
+          "id": "petrol",
+          "no_assume": true,
+          "label": "Petrol (SGD, in person)",
+          "mpd": 4.0,
+          "match": {
+            "mcc": [
+              "5541"
+            ],
+            "fcy": false
+          }
+        },
+        {
+          "id": "fcy",
+          "label": "Foreign currency, with S$800+ on the card that month",
+          "mpd": 2.8,
+          "min_spend": 800,
+          "tier_basis": "7X TREATS; minimum = retail spend on the card in the calendar month (excluded transactions don't count)",
+          "match": {
+            "fcy": true
+          },
+          "period": "calendar",
+          "rounding": "pooled"
+        },
+        {
+          "id": "fcy_4000",
+          "label": "Foreign currency, with S$4,000+ on the card that month",
+          "mpd": 3.2,
+          "min_spend": 4000,
+          "tier_basis": "8X TREATS instead of 7X",
+          "match": {
+            "fcy": true
+          },
+          "period": "calendar",
+          "rounding": "pooled"
+        }
+      ],
+      "notes": "Foreign currency: under S$800 of retail spend on the card in the calendar month = 0.4, S$800+ = 2.8 (7X), S$4,000+ = 3.2 (8X); the minimum counts local + foreign retail spend, not excluded transactions (made in the month and posted by the 7th of the next). FCY uncapped. Petrol stations in Singapore 4 mpd (10X), not online. Other 10X merchants: see the bank page. Education + hospitals earn. TREATS 2.5:1 (25K -> 10K miles, S$27.25, KrisFlyer must be enrolled in the TREATS SG app), no expiry. Checked against Maybank's World Mastercard Privileges T&C (effective 1 Dec 2025) and card page on 10 Nov 2026.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (Maybank World Mastercard Privileges T&C, effective 1 Dec 2025, General T&C g-i): 6012, 6050, 6529, 6530, 6534, 6010, 6011, 7511, 7349"
+    },
+    "maybank_xl": {
+      "name": "Maybank XL Rewards",
+      "programme": "TREATS",
+      "points_per_mile": 2.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 0.4
+      },
+      "exclude": [],
+      "buckets": [
+        {
+          "id": "bonus",
+          "label": "Dining / shopping / travel / play / FCY",
+          "mpd": 4.0,
+          "match": {
+            "any_of": [
+              {
+                "fcy": true
+              },
+              {
+                "mcc": [
+                  "5811",
+                  "5812",
+                  "5814",
+                  "5462",
+                  "5262",
+                  "5310",
+                  "5311",
+                  "5331",
+                  "5399",
+                  "5621",
+                  "5631",
+                  "5651",
+                  "5655",
+                  "5661",
+                  "5691",
+                  "5699",
+                  "5941",
+                  "3000-3299",
+                  "3300-3308",
+                  "4511",
+                  "4722",
+                  "7011",
+                  "4899",
+                  "5813",
+                  "5815",
+                  "7832",
+                  "7993",
+                  "7994"
+                ]
+              }
+            ]
+          },
+          "cap": 1000,
+          "min_spend": 500,
+          "min_basis": "eligible spend (bonus and non-bonus, supplementary cards included; excluded transactions and Etiqa insurance don't count)",
+          "period": "calendar"
+        }
+      ],
+      "notes": "Minimum S$500 of eligible spend per calendar month (under it the whole month earns 0.4); bonus cap S$1,000 a month. Cards approved Jul / Aug / Sep 2026 have a S$1,500 cap until 31 Oct / 30 Nov / 31 Dec 2026. Spend posted after the 10th of the next month counts for that month. Points per S$5 block. Utilities earn nothing. Education and hospitals earn 0.4. TREATS expire 12-15 months. Checked against Maybank's XL T&C (effective 1 Dec 2025) on 10 Nov 2026.",
+      "exclude_mcc": [
+        "4829",
+        "4900",
+        "5960",
+        "6010",
+        "6011",
+        "6012",
+        "6050",
+        "6051",
+        "6211",
+        "6300",
+        "6381",
+        "6399",
+        "6529",
+        "6530",
+        "6534",
+        "6540",
+        "6543",
+        "7349",
+        "7511",
+        "7523",
+        "7995",
+        "8398",
+        "8651",
+        "8661",
+        "9211",
+        "9222",
+        "9223",
+        "9311",
+        "9399",
+        "9402",
+        "9405"
+      ],
+      "_exclude_bank_doc": "10 Nov 2026: from the bank's own documents (Maybank XL TREATS Points T&C effective 1 Dec 2025; TREATS Points Rewards Programme T&C 9 Oct 2026)",
+      "_exclude_why": "Explicit list instead of the common set: education (8211-8299) and hospitals (8062) are NOT excluded on this card (they earn 0.4 and count toward the S$500), per the XL T&C (1 Dec 2025) and the general TREATS T&C (9 Oct 2026)"
+    },
+    "maybank_manu": {
+      "fixtures": "football-data/PL/66",
+      "exclude_mcc": [
+        "5960",
+        "6300",
+        "6381",
+        "6399",
+        "8398",
+        "8661",
+        "8651",
+        "9211",
+        "9222",
+        "9223",
+        "9311",
+        "9399",
+        "9402",
+        "7995",
+        "6211",
+        "6051",
+        "6540",
+        "4829",
+        "7523",
+        "4900",
+        "7349",
+        "6012",
+        "6050",
+        "6529",
+        "6530",
+        "6534",
+        "6010",
+        "6011",
+        "7511",
+        "6543",
+        "9405"
+      ],
+      "_exclude_why": "Maybank TREATS exclusions (= common set) minus the codes this card pays 0.4 on (low_rate)",
+      "name": "Maybank Man Utd",
+      "programme": "TREATS",
+      "points_per_mile": 2.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 1.12,
+        "fcy": 1.12
+      },
+      "low_rate": {
+        "mpd": 0.4,
+        "sgd_only": true,
+        "mcc": [
+          "6513",
+          "8211-8299",
+          "8062",
+          "4119",
+          "5047",
+          "5122",
+          "5912",
+          "5975",
+          "5976",
+          "8011",
+          "8021",
+          "8031",
+          "8041",
+          "8042",
+          "8043",
+          "8049",
+          "8050",
+          "8071",
+          "8099",
+          "7399",
+          "4812",
+          "4814"
+        ]
+      },
+      "exclude": [],
+      "buckets": [
+        {
+          "id": "win",
+          "label": "EPL win day",
+          "mpd": 2.8,
+          "match": {
+            "match_day": "win"
+          },
+          "cap": 2000,
+          "period": "match_day"
+        },
+        {
+          "id": "draw",
+          "label": "EPL draw day (1 per month; bank terms cover the 2025/26 season only)",
+          "mpd": 1.6,
+          "match": {
+            "match_day": "draw"
+          },
+          "cap": 2000,
+          "period": "match_day",
+          "max_per_month": 1,
+          "provisional": "Maybank's terms (March 2026) grant the draw bonus for the 2025/26 season; no 2026/27 extension published as of 10 Nov 2026"
+        }
+      ],
+      "notes": "Normal or loss day 1.12, uncapped. Bonus day = the match's UK start date, spent that date 00:00-23:59 SGT. One draw bonus a month. Low-rate categories: 0.4 in S$, 1.12 in foreign currency, never a match-day bonus (T&C cl. 5). Utilities earn nothing. Points per S$5 block. The draw bonus is only confirmed for the 2025/26 season. Checked against Maybank's card T&C (March 2026) on 10 Nov 2026.",
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own documents (Manchester United card T&C March 2026 cl. 16; TREATS T&C 9 Oct 2026): 4900, 7349, 6012, 6050, 6529, 6530, 6534, 6010, 6011, 7511, 6543, 9405"
+    },
+    "citibank_premiermiles": {
+      "name": "Citi PremierMiles",
+      "programme": "CITI_MILES",
+      "points_per_mile": 1.0,
+      "rounding": "per_1",
+      "base_mpd": {
+        "sgd": 1.2,
+        "fcy": 2.2
+      },
+      "exclude": [
+        "common"
+      ],
+      "buckets": [
+        {
+          "id": "kaligo",
+          "label": "Kaligo hotels (promo)",
+          "mpd": 10.0,
+          "match": {
+            "merchant": [
+              "KALIGO"
+            ]
+          },
+          "until": "2026-12-31",
+          "provisional": "only via kaligo.com/bonus-miles; bonus credited within 2 calendar months after the check-out month"
+        },
+        {
+          "id": "agoda",
+          "label": "Agoda hotels (promo)",
+          "mpd_sgd": 6.2,
+          "mpd": 7.2,
+          "match": {
+            "merchant": [
+              "AGODA"
+            ]
+          },
+          "until": "2026-12-31",
+          "provisional": "only via agoda.com/bonusmiles, prepaid hotels (room charge); book by 31 Dec 2026, stay by 30 Apr 2027; bonus credited within 2 months after check-out"
+        }
+      ],
+      "notes": "1.2 mpd local, 2.2 mpd foreign currency, no cap, Citi Miles don't expire. 10,000 miles on paying the S$196.20 annual fee (taken back if the fee is waived). S$27.25 per transfer. Checked against Citi's card agreement (effective 1 May 2025) and exclusion list on 10 Nov 2026. Not in any public Citi document: the 1:1 KrisFlyer ratio (shown after login) and whether CardUp earns.",
+      "exclude_mcc": [
+        "6529-6540",
+        "6012",
+        "6050",
+        "6513",
+        "5199",
+        "5993",
+        "7349",
+        "7511",
+        "7800",
+        "8651-8661",
+        "9000-9999"
+      ],
+      "_exclude_bank_doc": "10 Nov 2026: from the bank's own document (Citi Rewards Exclusion List, effective 16 Dec 2024)"
+    },
+    "ocbc_titanium": {
+      "name": "OCBC Rewards",
+      "programme": "OCBC",
+      "points_per_mile": 2.5,
+      "rounding": "per_txn_5",
+      "base_mpd": {
+        "sgd": 0.4,
+        "fcy": 0.4
+      },
+      "exclude": [
+        "common"
+      ],
+      "exclude_merchant": [
+        "CARDUP",
+        "IPAYMY"
+      ],
+      "buckets": [
+        {
+          "id": "six",
+          "label": "Watsons / Shopee / Lazada / Taobao / TikTok Shop (promo)",
+          "mpd": 6.0,
+          "match": {
+            "merchant": [
+              "WATSONS|SHOPEE|LAZADA|TAOBAO|TIKTOK\\s*SHOP"
+            ],
+            "not_mcc": [
+              "5262",
+              "5411"
+            ]
+          },
+          "cap": 1000,
+          "period": "calendar",
+          "until": "2027-03-31",
+          "shares_cap_with": "four"
+        },
+        {
+          "id": "four",
+          "label": "Shopping MCCs + named e-commerce",
+          "mpd": 4.0,
+          "match": {
+            "any_of": [
+              {
+                "mcc": [
+                  "5309",
+                  "5311",
+                  "5611",
+                  "5621",
+                  "5631",
+                  "5641",
+                  "5651",
+                  "5655",
+                  "5661",
+                  "5691",
+                  "5699",
+                  "5941",
+                  "5948"
+                ]
+              },
+              {
+                "merchant": [
+                  "ALIBABA|ALIEXPRESS|AMAZON|EZBUY|GUARDIAN|LAZADA|MUSTAFA|SHOPEE|TAOBAO|TIKTOK\\s*SHOP|UNITY|WATSONS"
+                ]
+              }
+            ],
+            "not_mcc": [
+              "5262",
+              "5411"
+            ]
+          },
+          "cap": 1110,
+          "period": "calendar"
+        }
+      ],
+      "notes": "4 mpd (50 OCBC$ per S$5) on the shopping MCCs and named merchants; the bonus is capped at 10,000 OCBC$ a calendar month = about S$1,110 of spend, shared with supplementary cards, and OCBC may count other campaigns' bonus (the 6 mpd promo) toward it. Bonus points post by the end of the next month. Points per S$5 block per transaction. Shopee Pay (MCC 5262) earns nothing; MCC 5411 earns no bonus. No points at all while on SmartChange. OCBC$ expire after 24 months. Checked on 10 Nov 2026 against OCBC's Rewards Card Programme T&C (updated 5 Oct 2026). 6 mpd promotion (15X OCBC$ Campaign T&C, 1 Jul 2026): an extra 5 OCBC$ per S$1 at Watsons, Shopee, Lazada, TikTok Shop and Taobao, up to 5,000 bonus OCBC$ a calendar month (S$1,000 of spend), 1 Jul 2026 to 31 Mar 2027, by posting date. Exclusions per OCBC's Cards Rewards Transaction Exclusion List (4 Nov 2026); it also names AXS, SAM, EZ-Link, Transit Link and ShopeePay. NOT checked against a bank document: the annual fee and its waiver rule. Fee waiver is asked for in the OCBC app (More > Card Services > Request fee waiver).",
+      "exclude_mcc": [
+        "4784",
+        "5047",
+        "5199",
+        "5993",
+        "6010",
+        "6012",
+        "6513",
+        "7349",
+        "8675",
+        "8699",
+        "9405"
+      ],
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (OCBC Cards Rewards Transaction Exclusion List, updated 4 Nov 2026): 4784, 5047, 5199, 5993, 6010, 6012, 6513, 7349, 8675, 8699, 9405"
+    }
+  }
+}
