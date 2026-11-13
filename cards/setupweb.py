@@ -814,7 +814,7 @@ def post_admin(conn, path, form, person):
                 if not (config.app("telegram_token") and config.app("telegram_chat")):
                     return False, "No test: the bot token and the chat id are both needed."
                 try:
-                    notify.telegram("sg-card-advisor: test message. Sending works.", force=True)
+                    notify.telegram("sg-miles-advisor: test message. Sending works.", force=True)
                     return True, "A test message was sent to the chat."
                 except Exception as ex:
                     code = getattr(ex, "code", None)

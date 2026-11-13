@@ -180,7 +180,7 @@ def app(key):
 def user_agent():
     """How the app names itself to outside services (App settings can replace it)."""
     from . import __version__
-    return app("catalogue_ua") or f"sg-card-advisor/{__version__} (+https://github.com/quinneydavid/sg-card-advisor)"
+    return app("catalogue_ua") or f"sg-miles-advisor/{__version__} (+https://github.com/quinneydavid/sg-miles-advisor)"
 
 
 def flag(key):

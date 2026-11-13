@@ -112,7 +112,7 @@ def gmail_filters(banks, label=DEFAULT_FOLDER, skip_inbox=False, now=None):
            "  <title>Mail Filters</title>",
            "  <id>tag:mail.google.com,2008:filters:</id>",
            f"  <updated>{now}</updated>",
-           "  <author><name>sg-card-advisor</name></author>"]
+           "  <author><name>sg-miles-advisor</name></author>"]
     for bid, name, domains in known:
         out += ["  <entry>",
                 "    <category term='filter'></category>",

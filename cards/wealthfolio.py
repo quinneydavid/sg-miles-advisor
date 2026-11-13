@@ -149,7 +149,7 @@ class Client:
         if not token:
             raise Problem("No access token is stored.")
         self._rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
-                                 "clientInfo": {"name": "sg-card-advisor", "version": __version__}})
+                                 "clientInfo": {"name": "sg-miles-advisor", "version": __version__}})
         self._post({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
     def _post(self, msg):

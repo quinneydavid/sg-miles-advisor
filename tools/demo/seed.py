@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fill a throwaway sg-card-advisor with an invented household, for the README screenshots.
+"""Fill a throwaway sg-miles-advisor with an invented household, for the README screenshots.
 
 Everything goes in through the app's own pages and its feeder API, the way a person and a feeder would do it: nothing
 is written to the database directly. All of it is made up: "Alex" and "Sam", card numbers like 1234, shops any
@@ -166,7 +166,7 @@ def check(app, args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Load invented demo data into a throwaway sg-card-advisor.")
+    ap = argparse.ArgumentParser(description="Load invented demo data into a throwaway sg-miles-advisor.")
     ap.add_argument("--url", default="http://127.0.0.1:18080")
     ap.add_argument("--throwaway", action="store_true", help="yes, this installation holds nothing worth keeping")
     args = ap.parse_args()

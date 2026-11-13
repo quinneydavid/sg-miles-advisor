@@ -1,7 +1,7 @@
 FROM python:3.13.15-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
-LABEL org.opencontainers.image.title="sg-card-advisor" \
+LABEL org.opencontainers.image.title="sg-miles-advisor" \
       org.opencontainers.image.description="Singapore credit card catalogue, MCC rules, sign-up offers and wallet advisor" \
-      org.opencontainers.image.source="https://github.com/quinneydavid/sg-card-advisor" \
+      org.opencontainers.image.source="https://github.com/quinneydavid/sg-miles-advisor" \
       org.opencontainers.image.licenses="MIT"
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt

@@ -27,7 +27,7 @@ from . import __version__, config, db, store
 def ua():
     """What the catalogue run calls itself to the sites it reads: the tool and where it lives, unless an admin set
     another string on the App page."""
-    return config.app("catalogue_ua") or f"sg-card-advisor/{__version__} (+https://github.com/quinneydavid/sg-card-advisor)"
+    return config.app("catalogue_ua") or f"sg-miles-advisor/{__version__} (+https://github.com/quinneydavid/sg-miles-advisor)"
 
 
 WIKI = "https://sg-miles-public-wiki.pages.dev/search/search_index.json"

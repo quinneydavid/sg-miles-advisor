@@ -1,4 +1,4 @@
-# sg-card-advisor on one machine: Postgres + the app, one person, no login.
+# sg-miles-advisor on one machine: Postgres + the app, one person, no login.
 # Copy .env.example to .env first and set PGPASSWORD. The app listens on 127.0.0.1:8080 only.
 # `docker compose up -d` uses the published image; `docker compose up -d --build` builds it from this checkout.
 services:
@@ -19,7 +19,7 @@ services:
 
   # Creates the tables and loads the sample of hand-checked cards. Safe to run on every start.
   seed:
-    image: ghcr.io/quinneydavid/sg-card-advisor:latest
+    image: ghcr.io/quinneydavid/sg-miles-advisor:latest
     build: .
     command: ["seed"]
     env_file: .env
@@ -35,7 +35,7 @@ services:
     restart: "no"
 
   app:
-    image: ghcr.io/quinneydavid/sg-card-advisor:latest
+    image: ghcr.io/quinneydavid/sg-miles-advisor:latest
     build: .
     command: ["web"]
     env_file: .env
@@ -58,7 +58,7 @@ services:
 
   # Reads each person's mailbox (set on the Settings page) and the drop folder every 15 minutes.
   ingest:
-    image: ghcr.io/quinneydavid/sg-card-advisor:latest
+    image: ghcr.io/quinneydavid/sg-miles-advisor:latest
     build: .
     command: ["ingest", "--every", "15"]
     env_file: .env

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.3
+- Renamed SG Miles Advisor. The repository is `quinneydavid/sg-miles-advisor` and the image is `ghcr.io/quinneydavid/sg-miles-advisor`; the old repository address redirects. An installation that names the old image keeps running on 0.10.2 until its compose file names the new one. No change to the data or the settings.
+- README: the problem the app solves comes first, then what each part does.
+
 ## 0.10.2
 The first version published on GitHub.
 - With `CARDS_SINGLE_USER` (no login) the app answers only when it is opened as `127.0.0.1`, `localhost` or `[::1]`, or under a name listed in the new `CARDS_HOSTS` (comma-separated). Any other `Host` gets a 421. This stops a web page that points its own name at 127.0.0.1 (DNS rebinding) from reading the app. `/healthz` is not checked. A single-user deployment that is opened under another name (a proxy, a container name, a LAN address) must set `CARDS_HOSTS`.

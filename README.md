@@ -1,7 +1,13 @@
-# sg-card-advisor
+# SG Miles Advisor
 
-A self-hosted web app for people who collect miles with Singapore credit cards. It answers three questions: which card
-to use for a purchase, what the wallet earned this period, and which cards to keep, cancel or get.
+Singapore miles credit cards pay their best rates only under conditions: a bonus category or a list of merchant
+codes, a way of paying (phone, contactless, online), a monthly cap, and often a minimum spend. Someone who holds
+several cards has to know, at the moment of paying, which card earns the most at this shop and whether its cap
+still has room. The wrong card earns 0.4 miles per dollar where 4 were available.
+
+SG Miles Advisor is a self-hosted web app that keeps track of this. It holds the rules of each card, reads the
+person's own transactions, and answers three questions: which card to use for a purchase, what the wallet earned
+this period, and which cards to keep, cancel or get.
 
 ![The Pay page: a shop typed in, the card to use, its rate and the cap room left this month](docs/screenshots/pay.png)
 
@@ -29,19 +35,66 @@ Not financial advice. Not affiliated with any bank, card scheme, Singapore Airli
 
 ## What it does
 
-Six places:
+### Which card to pay with
 
-| Place | Pages | What it shows |
-|---|---|---|
-| Pay | `/` | A shop or MCC plus the way of paying gives the card to use now, with this period's cap room counted. |
-| Wallet | `/wallet`, `/points`, `/fees` | Bonus caps and minimums this period, points per programme, annual fees and waiver rules. |
-| Flights | `/flights`, `/goals` | Where the miles on hand can go from Singapore, by cabin and party size, and the flights being saved for with the month each is reached. |
-| Spend | `/spend`, `/spend/lines`, `/statements` | What the spend earned, what it could have earned on the best held card, and every transaction. |
-| Advisor | `/advisor`, `/advisor/card`, `/simulate`, `/offers` | What each held card is worth after its fee (keep, ask for a waiver, cancel), cards worth adding, and a verdict with the sums for any one card. |
-| Cards | `/catalogue`, `/compare`, `/card/<id>`, `/mcc`, `/changes` | Every card, its rules and MCC lists, and the T&C check: the stored rates, caps and MCC lists compared with documents fetched from the bank's own website, each with the sentence quoted. |
+Type a shop, or a merchant category code, and choose how the payment is made (phone, online, overseas). The Pay
+page names the card to use now, its rate, and how much of its bonus cap is left this month. The next best cards
+are listed underneath, each with the condition that applies, such as a minimum spend that has not been met yet.
+The page is made for a phone at the till.
 
-The advice is arithmetic on the person's own transactions. A model, when one is configured, only reads statements and
-words a paragraph from those sums. A paragraph that contains a number the code did not produce is thrown away.
+### Caps, minimum spends and fees
+
+The Wallet page shows every bonus cap for the current period with the amount used and the room left, and every
+minimum spend with the amount still to go and the date it must be reached by. Annual fees appear when they are
+charged, with what paying the fee gives, how to ask the bank for a waiver, and a record of the answer. Points are
+totalled per programme.
+
+### What the spend earned
+
+The Spend page shows what the month earned, what the same purchases would have earned on the best held card
+every time, and the difference in miles. Each purchase is listed with its card, miles and rate, and with the
+better card where there was one. The "Next time" list names the shops where a different card would have earned
+more.
+
+### Which cards to keep, cancel or get
+
+The Advisor works out what each held card is worth in a year after its fee, from the person's own spend, and
+gives a verdict: keep, ask for a waiver, or cancel. It lists cards worth adding, gives the sums for any one
+card, and can try a whole wallet against the same spend. Sign-up bonuses are ranked by the cost of each bonus
+mile, with who qualifies and the bank's own wording quoted.
+
+### Where the miles can go
+
+The Flights page shows where the miles on hand can go from Singapore, by cabin and party size, and tracks the
+flights being saved for with the month each is reached.
+
+### The card catalogue and the T&C check
+
+Every card with its rules and MCC lists, and a side-by-side comparison of chosen cards. The T&C check compares
+the stored rates, caps and MCC lists with documents fetched from the bank's own website and reports each
+difference with the sentence quoted.
+
+### How the figures are produced
+
+The advice is arithmetic on the person's own transactions. Transactions come from one of three sources: card
+accounts kept in [Wealthfolio](https://wealthfolio.app), bank alert mails and statement files, or a feed from
+a script. See [Getting transactions in](#getting-transactions-in).
+
+A model, when one is configured, only reads statements and words a paragraph from those sums. A paragraph that
+contains a number the code did not produce is thrown away. See [The model](#the-model).
+
+An installation can serve several people. Each person sees only their own cards, spend and settings.
+
+### Pages
+
+| Place | Pages |
+|---|---|
+| Pay | `/` |
+| Wallet | `/wallet`, `/points`, `/fees` |
+| Flights | `/flights`, `/goals` |
+| Spend | `/spend`, `/spend/lines`, `/statements` |
+| Advisor | `/advisor`, `/advisor/card`, `/simulate`, `/offers` |
+| Cards | `/catalogue`, `/compare`, `/card/<id>`, `/mcc`, `/changes` |
 
 The pages are server-rendered HTML and work without JavaScript.
 
@@ -64,21 +117,21 @@ public ones in the catalogue.
 Needs Docker with the compose plugin.
 
 ```sh
-git clone https://github.com/quinneydavid/sg-card-advisor
-cd sg-card-advisor
+git clone https://github.com/quinneydavid/sg-miles-advisor
+cd sg-miles-advisor
 cp .env.example .env        # then set PGPASSWORD in .env: it is empty and compose will not start without it
 docker compose up -d
 ```
 
 `PGPASSWORD` is the database password; `openssl rand -hex 16` makes one.
 
-`docker compose up -d` uses the published image, `ghcr.io/quinneydavid/sg-card-advisor:latest`
-(`docker pull ghcr.io/quinneydavid/sg-card-advisor:latest` fetches it by hand, and `docker compose pull` fetches a
+`docker compose up -d` uses the published image, `ghcr.io/quinneydavid/sg-miles-advisor:latest`
+(`docker pull ghcr.io/quinneydavid/sg-miles-advisor:latest` fetches it by hand, and `docker compose pull` fetches a
 newer one later). To build the image from the checkout instead, run `docker compose up -d --build`. The compose file
 names both: its three app services share
 
 ```yaml
-    image: ghcr.io/quinneydavid/sg-card-advisor:latest
+    image: ghcr.io/quinneydavid/sg-miles-advisor:latest
     build: .
 ```
 
@@ -377,7 +430,7 @@ Limits:
   [seats.aero](https://seats.aero/) partner key in App settings, the weekly run (`--only seats`) asks which dates from
   Singapore have award seats in the next year. seats.aero re-checks far dates rarely, so the dates are a hint.
 - The data files contain short quotes from bank documents so a reader can check a rule against its source. Card
-  pictures and names belong to their owners; no pictures are in this repository.
+  pictures and names belong to their owners; no picture files are in this repository. The screenshots show card pictures as the app displays them.
 
 The refresh is meant to run weekly. It makes one request per source page, pauses two seconds between requests to bank
 sites, does not retry, records a refused request as blocked and leaves that site alone, and sends a User-Agent that
