@@ -119,8 +119,19 @@ def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None)
     base = float((card["base_fcy"] if p.get("fcy") else card["base_sgd"]) or 0)
     best, best_rule, extra = base, None, {}
     mins = (room or {}).get("__min__") if room is not None else None   # {bucket: S$ still to spend for its minimum}
+    shops = (room or {}).get("__shops__") or {}   # {bucket: different shops still needed (DBS yuu: 4)}
+
+    def reached(r):
+        return mins is not None and mins.get(r.get("bucket"), 1) <= 0 and shops.get(r.get("bucket"), 0) <= 0
+
+    # a tier that, once reached, takes the place of a lower one (one bonus limit for both): the lower one is gone
+    # for the period, even after the higher tier's limit is used up
+    replaced = {r["match"].get("instead_of") for r in rules if r.get("min_spend") and isinstance(r.get("match"), dict)
+                and r["match"].get("instead_of") and reached(r)}
     cands, used_up = [], []
     for r in rules:
+        if r.get("bucket") in replaced:
+            continue
         if r.get("promo_until") and p.get("today") and r["promo_until"] < p["today"]:
             continue
         ok, _ = applies(r["match"], p)
@@ -131,7 +142,7 @@ def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None)
         if left is not None and left <= 0:
             used_up.append(r.get("label") or r.get("bucket"))
             continue   # this period's cap is used up: the bonus doesn't apply now
-        locked = bool(r.get("min_spend")) and (mins is None or mins.get(r.get("bucket"), 1) > 0)
+        locked = bool(r.get("min_spend")) and not reached(r)
         cands.append((rate, r, cap, used, left, locked))
     # Minimum-spend ladders (S$800 -> 2.8, S$4,000 -> 3.2): a tier already reached beats tiers not reached yet, and
     # with none reached the lowest tier is the one to aim for, not the top of the ladder.
@@ -144,7 +155,9 @@ def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None)
         if rate > best:
             best, best_rule = rate, r
             extra = {"cap": cap, "boosts": used, "next": next_boost(r, rate, boosts, amounts), "left": left,
-                     "locked": locked, "min_left": (mins or {}).get(r.get("bucket")) if locked else None}
+                     "locked": locked, "min_left": (mins or {}).get(r.get("bucket")) if locked else None,
+                     "shops_left": shops.get(r.get("bucket")) if locked else None,
+                     "min_shops": (r["match"].get("min_shops") or {}).get("count") if isinstance(r.get("match"), dict) else None}
     extra["used_up"] = used_up
     if best_rule is None and not used_up:
         extra = {}

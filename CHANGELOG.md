@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.5
+- DBS yuu Visa and DBS yuu American Express are hand-checked against DBS's own terms (updated 30 Oct 2026): 2.78 miles per S$ at yuu shops with no minimum; 10 miles per S$ in a calendar month with S$800 of eligible spend on the card and purchases at 4 different yuu shops; both draw on one bonus limit of 28,800 yuu Points (8,000 miles) a month; 0.14 miles per S$ elsewhere; DBS's exclusion list; Singapore only. Shop names now match the way they appear on statements (for example "COLD STORAGE - JELITA", "BUS/MRT").
+- A minimum can now also ask for purchases at a number of different shops (`min_shops` in a rule's match). Wallet, Which card?, the summary and the alerts say how many shops are still needed and which ones are open.
+- A higher tier can replace a lower one for the period once its target is met (`instead_of`), so two tiers that share one bonus limit are not both counted.
+
 ## 0.10.4
 - Which card? no longer lists "Your usual places" under the search box.
 

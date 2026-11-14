@@ -34,7 +34,8 @@ def caps(conn, person):
                     "used": round(x["used"], 2), "left": round(x["left"], 2) if x["left"] is not None else None,
                     "period": "statement" if x["statement"] else "calendar", "from": x["start"].isoformat(), "to": x["end"].isoformat(),
                     "resets_in_days": x["days_left"], "min_spend": x["min_spend"],
-                    "min_left": round(x["min_left"], 2) if x["min_left"] is not None else None}
+                    "min_left": round(x["min_left"], 2) if x["min_left"] is not None else None,
+                    "shops_need": x.get("shops_need"), "shops_left": x.get("shops_left"), "shops_have": x.get("shops_have")}
                    for x in (ctx["progress"] if ctx else [])]
     routing = []
     store = replay.in_store(person)
@@ -129,12 +130,14 @@ def summary_text(conn, person):
         lines.append("💳 Bonus left:")
         for x in sorted(low, key=lambda x: x["left"])[:6]:
             lines.append(f"• {x['card_name']} {x['label']}: S${x['left']:,.0f} of S${x['cap']:,.0f} ({x['resets_in_days']} d)")
-    mins = [x for x in c["caps"] if x["min_left"]]
+    mins = [x for x in c["caps"] if x["min_left"] or x.get("shops_left")]
     if mins:
         lines.append("")
         lines.append("🎯 Minimum spend:")
         for x in mins[:4]:
-            lines.append(f"• {x['card_name']} ({x['label']}): S${x['min_left']:,.0f} more by {datetime.date.fromisoformat(x['to']):%d %b}")
+            need = ([f"S${x['min_left']:,.0f} more"] if x["min_left"] else []) + \
+                   ([f"{x['shops_left']} more of its shops"] if x.get("shops_left") else [])
+            lines.append(f"• {x['card_name']} ({x['label']}): {' and '.join(need)} by {datetime.date.fromisoformat(x['to']):%d %b}")
     for w in c["boost_warnings"]:
         lines += ["", f"⚠️ {w}"]
     if c["goals"]:
@@ -164,9 +167,11 @@ def alerts(conn, person):
             out.append((f"{person['id']}:cap90:{x['card']}:{x['label']}:{x['from']}",
                         f"💳 {x['card_name']} {x['label']}: only S${x['left']:,.0f} of the S${x['cap']:,.0f} bonus left "
                         f"until {datetime.date.fromisoformat(x['to']):%d %b}. Next best: see Which card?"))
-        if x["min_left"] and x["resets_in_days"] <= 5:
+        if (x["min_left"] or x.get("shops_left")) and x["resets_in_days"] <= 5:
+            need = ([f"S${x['min_left']:,.0f} more"] if x["min_left"] else []) + \
+                   ([f"{x['shops_left']} more of its shops"] if x.get("shops_left") else [])
             out.append((f"{person['id']}:min:{x['card']}:{x['label']}:{x['from']}",
-                        f"🎯 {x['card_name']}: S${x['min_left']:,.0f} more by {datetime.date.fromisoformat(x['to']):%d %b} "
+                        f"🎯 {x['card_name']}: {' and '.join(need)} by {datetime.date.fromisoformat(x['to']):%d %b} "
                         f"to unlock {x['mpd']:g} mpd on {x['label']}."))
     for g in c["goals"]:
         if g["reachable"]:

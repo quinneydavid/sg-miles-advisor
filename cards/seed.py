@@ -27,7 +27,7 @@ BANKS = {
 }
 PROGRAMMES = {"DBS_POINTS": ("DBS Points", "dbs"), "UNI": ("UOB UNI$", "uob"), "KF": ("KrisFlyer miles", None),
               "TREATS": ("Maybank TreatsPoints", "maybank"), "CITI_MILES": ("Citi Miles", "citi"),
-              "OCBC": ("OCBC$", "ocbc")}
+              "OCBC": ("OCBC$", "ocbc"), "YUU": ("yuu Points", None)}
 PREFIX = {"dbs": "dbs", "uob": "uob", "maybank": "maybank", "citibank": "citi", "ocbc": "ocbc"}
 
 

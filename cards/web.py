@@ -99,6 +99,8 @@ def wallet_context(conn, person):
                 room.setdefault(x["card"], {})[x["bucket"]] = x["left"]
             if x["min_left"] is not None:   # read by engine.rate_card: which minimum-spend tiers are reached
                 room.setdefault(x["card"], {}).setdefault("__min__", {})[x["bucket"]] = x["min_left"]
+            if x.get("shops_left") is not None:   # and how many different shops a min_shops tier still needs
+                room.setdefault(x["card"], {}).setdefault("__shops__", {})[x["bucket"]] = x["shops_left"]
         return {"progress": prog, "room": room, "cards": base.cards}
 
     return cache.memo(conn, person["id"], ("ctx", cache.person_key(person), today), work)
@@ -211,18 +213,26 @@ def wallet_page(conn, q, person):
             cc = ctx["cards"][x["card"]]
             pct = min(100, round(100 * x["used"] / x["cap"])) if x["cap"] else None
             what = []
-            unmet = bool(x["min_spend"] and x["min_left"])
+            short_shops = x.get("shops_left") or 0
+            unmet = bool(x["min_spend"] and (x["min_left"] or short_shops))
             lead = ""
-            if unmet:   # the first thing to know: without the minimum there is no bonus at all
+            per_txt = 'statement month' if x['statement'] else 'month'
+            if unmet and x["min_left"]:   # the first thing to know: without the minimum there is no bonus at all
                 lead = (f"<small class=warn style='white-space:normal'>Spend {money(x['min_left'])} more on this card by {x['end']:%d %b} "
-                        f"or it earns no bonus this {'statement month' if x['statement'] else 'month'} (it needs {money(x['min_spend'])}).</small>")
+                        f"or it earns no bonus this {per_txt} (it needs {money(x['min_spend'])}).</small>")
+            if short_shops:
+                have = ", ".join(x["shops_have"]) or "none yet"
+                todo = ", ".join(sh for sh in x["shops_all"] if sh not in x["shops_have"])
+                lead += (f"<small class=warn style='white-space:normal'>Buy at {short_shops} more of its shops by {x['end']:%d %b} "
+                         f"(it needs {x['shops_need']} different ones; so far: {e(have)}). Still open: {e(todo)}.</small>")
             if x["cap"]:
                 what.append(f"{money(x['used'])} of the {money(x['cap'])} bonus limit used, at {num(x['rate'])} miles per S$")
             if x["min_spend"] and not unmet:
                 what.append(f"{money(x['min_spend'])} minimum reached ✓")
             days = "today" if x["days_left"] <= 0 else ("1 day left" if x["days_left"] == 1 else f"{x['days_left']} days left")
             when = f"{'statement month' if x['statement'] else 'month'} ends {x['end']:%d %b} ({days})"
-            right = (f"{money(x['min_left'])}<small>to spend</small>" if unmet else
+            right = (f"{money(x['min_left'])}<small>to spend</small>" if unmet and x["min_left"] else
+                     f"{short_shops}<small>shops to go</small>" if unmet else
                      f"{money(x['left'])}<small>bonus room</small>" if x["cap"] else "✓")
             pct_cls = "hot" if (pct is not None and pct >= 90) or unmet else ""
             (rows if (x["used"] or x["card_total"]) else quiet).append(
@@ -881,8 +891,14 @@ def lookup(conn, q, person):
                 bits.append(f"{money(r['min_spend'])} minimum reached")
             elif ml:
                 bits.append(f"only if you put {money(ml)} more on this card this {per} (it needs {money(r['min_spend'])})")
-            else:
+            elif ml is None:
                 bits.append(f"only once {money(r['min_spend'])} is spent on this card in the {per}")
+            else:
+                bits.append(f"{money(r['min_spend'])} minimum reached")
+            ns, sl = x["extra"].get("min_shops"), x["extra"].get("shops_left")
+            if ns and x["extra"].get("locked"):
+                bits.append(f"and {sl} more of its shops this {per} (it needs {ns} different ones)" if sl else
+                            f"and purchases at {ns} different shops of its list in the {per}" if sl is None else "")
         if r["depth"] != "full":
             bits.append("not checked against the bank's terms")
         if x["extra"].get("used_up"):

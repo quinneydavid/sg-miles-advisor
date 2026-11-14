@@ -215,7 +215,7 @@ def assign(base, lines, ids, enforce_min=True):
         for ln in spend:
             miles, cid = w.best(ln, ids)
             per.append((ln, cid, miles))
-            card_lines[cid].append((ln["date"], ln["amount"]))
+            card_lines[cid].append((ln["date"], ln["amount"], ln.get("merchant")))
         new = (_unmet(base, card_lines) - off) if enforce_min else set()
         if not new:
             break
@@ -308,7 +308,7 @@ def _pass(base, spend, held, allowed, off):
         # spend that counts toward a card's minimum: not what the card excludes (banks leave excluded transactions out)
         for k, c in (("actual", cid), ("wallet", w_cid), ("any", y_cid)):
             if not (ln.get("mcc") and ln["mcc"] in base.excl.get(c, ())):
-                card_lines[k][c].append((ln["date"], ln["amount"]))
+                card_lines[k][c].append((ln["date"], ln["amount"], ln.get("merchant")))
         out.append({**ln, "match_pending": waiting, "actual": a_miles, "wallet_card": w_cid, "wallet": w_miles, "any_card": y_cid, "any": y_miles,
                     "wallet_alts": w_alts, "add_alts": y_alts, "wallet_over": w_over,
                     "real_alts": real_alts, "cap_state": cap_state,
@@ -333,10 +333,33 @@ def card_totals(base, cid, lines):
     """{(bucket, period key): spend on the card} for every rule of the card with a period."""
     tot = defaultdict(float)
     for r in base.rules.get(cid, []):
-        for d, amt in lines:
+        for d, amt, *_ in lines:
             k = base.key(cid, r, d) or ym(d)
             tot[(r["bucket"], k)] += amt
     return tot
+
+
+def shops_rule(r):
+    """A minimum that also asks for purchases at N different named shops in the period (DBS yuu: 4 participating
+    merchants): (count, {shop: regex}) or None."""
+    m = r.get("match") if isinstance(r.get("match"), dict) else {}
+    ms = m.get("min_shops")
+    return (int(ms["count"]), ms["shops"]) if isinstance(ms, dict) and ms.get("count") else None
+
+
+def shop_counts(base, cid, lines):
+    """{(bucket, period key): set of the named shops bought at} for the card's rules with min_shops."""
+    out = defaultdict(set)
+    for r in base.rules.get(cid, []):
+        sr = shops_rule(r)
+        if not sr:
+            continue
+        for d, _amt, *rest in lines:
+            name = rest[0] if rest else None
+            for shop, rx in sr[1].items():
+                if engine._re_any([rx], name):
+                    out[(r["bucket"], base.key(cid, r, d) or ym(d))].add(shop)
+    return out
 
 
 def _unmet(base, card_lines):
@@ -347,12 +370,21 @@ def _unmet(base, card_lines):
         if cid not in base.cards:
             continue
         tot = card_totals(base, cid, lines)
+        shops = shop_counts(base, cid, lines)
         for r in base.rules.get(cid, []):
             if not r.get("min_spend"):
                 continue
+            sr = shops_rule(r)
             for (bucket, k), total in tot.items():
-                if bucket == r["bucket"] and total < float(r["min_spend"]):
+                if bucket != r["bucket"]:
+                    continue
+                if total < float(r["min_spend"]) or (sr and len(shops.get((bucket, k), ())) < sr[0]):
                     bad.add((cid, bucket, k))
+                else:
+                    # a tier that, once reached, takes the place of a lower one (both draw on one bonus limit)
+                    rep = (r.get("match") or {}).get("instead_of") if isinstance(r.get("match"), dict) else None
+                    if rep:
+                        bad.add((cid, rep, k))
     return bad
 
 
@@ -393,6 +425,7 @@ def progress(base, lines, held, today):
         if cid not in base.cards:
             continue
         sums = card_totals(base, cid, card_lines.get(cid, []))
+        shops = shop_counts(base, cid, card_lines.get(cid, []))
         for r in base.rules.get(cid, []):
             if not (r.get("cap") or r.get("min_spend")):
                 continue
@@ -407,6 +440,10 @@ def progress(base, lines, held, today):
                         "cap": float(cap) if cap else None, "used": u, "left": max(0.0, float(cap) - u) if cap else None,
                         "min_spend": float(r["min_spend"]) if r.get("min_spend") else None,
                         "min_left": max(0.0, float(r["min_spend"]) - total) if r.get("min_spend") else None,
+                        "shops_need": shops_rule(r)[0] if shops_rule(r) else None,
+                        "shops_have": sorted(shops.get((r["bucket"], k), ())) if shops_rule(r) else None,
+                        "shops_left": max(0, shops_rule(r)[0] - len(shops.get((r["bucket"], k), ()))) if shops_rule(r) else None,
+                        "shops_all": sorted(shops_rule(r)[1]) if shops_rule(r) else None,
                         "card_total": total, "start": start, "end": end, "days_left": (end - today).days,
                         "statement": r.get("cap_period") == "statement" and bool(base.closes.get(cid))})
     return out

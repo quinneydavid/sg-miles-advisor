@@ -1067,6 +1067,232 @@
         "9405"
       ],
       "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (OCBC Cards Rewards Transaction Exclusion List, updated 4 Nov 2026): 4784, 5047, 5199, 5993, 6010, 6012, 6513, 7349, 8675, 8699, 9405"
+    },
+    "dbs_yuu_visa_card": {
+      "name": "DBS yuu Visa",
+      "programme": "YUU",
+      "points_per_mile": 3.6,
+      "rounding": "per_1",
+      "base_mpd": {
+        "sgd": 0.14,
+        "fcy": 0.14
+      },
+      "default_channel": "any",
+      "exclude_mcc": [
+        "4784",
+        "4829",
+        "4900",
+        "5047",
+        "5199",
+        "5960",
+        "5993",
+        "6010",
+        "6011",
+        "6012",
+        "6050",
+        "6051",
+        "6211",
+        "6300",
+        "6381",
+        "6399",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "6540",
+        "7349",
+        "7511",
+        "7523",
+        "7995",
+        "8062",
+        "8211",
+        "8220",
+        "8241",
+        "8244",
+        "8249",
+        "8299",
+        "8398",
+        "8651",
+        "8661",
+        "8699",
+        "8999",
+        "9211",
+        "9222",
+        "9223",
+        "9311",
+        "9399",
+        "9402",
+        "9405"
+      ],
+      "buckets": [
+        {
+          "id": "yuu_full",
+          "label": "yuu shops, monthly target met",
+          "mpd": 10.0,
+          "match": {
+            "fcy": false,
+            "merchant": [
+              "COLD STORAGE|\\bCS FRESH\\b|JASONS? DELI|\\bGIANT\\b|\\bGUARDIAN\\b|7[- ]?ELEVEN|SEVEN[- ]ELEVEN|FOODPANDA|PANDA ?MART|PANDA SHOPS?\\b|\\bGOJEK\\b|SIMPLYGO|SIMPLY GO|BUS/MRT|CHARGE ?\\+|CHARGEPLUS|CHARGE PLUS|\\bCHAGEE\\b|SINGTEL (SHOP|EXCLUSIVE)"
+            ],
+            "not_merchant": [
+              "SINGTEL DASH|ON THE GO|\\bESSO\\b|CHANGI AIRPORT|\\bT[1-4] |JEWEL CHANGI"
+            ],
+            "min_shops": {
+              "count": 4,
+              "shops": {
+                "Cold Storage": "COLD STORAGE|\\bCS FRESH\\b|JASONS? DELI",
+                "Giant": "\\bGIANT\\b",
+                "Guardian": "\\bGUARDIAN\\b",
+                "7-Eleven": "7[- ]?ELEVEN|SEVEN[- ]ELEVEN",
+                "foodpanda": "FOODPANDA|PANDA ?MART|PANDA SHOPS?\\b",
+                "Gojek": "\\bGOJEK\\b",
+                "SimplyGo": "SIMPLYGO|SIMPLY GO|BUS/MRT",
+                "Charge+": "CHARGE ?\\+|CHARGEPLUS|CHARGE PLUS",
+                "CHAGEE": "\\bCHAGEE\\b",
+                "Singtel shop": "SINGTEL (SHOP|EXCLUSIVE)"
+              }
+            },
+            "instead_of": "yuu"
+          },
+          "cap": 822.86,
+          "period": "calendar",
+          "min_spend": 800,
+          "rounding": "per_1",
+          "tier_basis": "18% = 36 yuu Points per S$ (base 1 + bonus 9 + bonus 26) when the card has S$800 of eligible spend in the calendar month AND purchases at 4 different participating merchants (SimplyGo counts); bonus limit 28,800 yuu Points a month = S$822.86 at 35 bonus points per S$ (DBS yuu Card T&C, updated 30 Oct 2026, clauses 6-8)"
+        },
+        {
+          "id": "yuu",
+          "label": "yuu shops",
+          "mpd": 2.78,
+          "match": {
+            "fcy": false,
+            "merchant": [
+              "COLD STORAGE|\\bCS FRESH\\b|JASONS? DELI|\\bGIANT\\b|\\bGUARDIAN\\b|7[- ]?ELEVEN|SEVEN[- ]ELEVEN|FOODPANDA|PANDA ?MART|PANDA SHOPS?\\b|\\bGOJEK\\b|SIMPLYGO|SIMPLY GO|BUS/MRT|CHARGE ?\\+|CHARGEPLUS|CHARGE PLUS|\\bCHAGEE\\b|SINGTEL (SHOP|EXCLUSIVE)"
+            ],
+            "not_merchant": [
+              "SINGTEL DASH|ON THE GO|\\bESSO\\b|CHANGI AIRPORT|\\bT[1-4] |JEWEL CHANGI"
+            ]
+          },
+          "cap": 3200,
+          "period": "calendar",
+          "rounding": "per_1",
+          "tier_basis": "5% = 10 yuu Points per S$ (base 1 + bonus 9; SimplyGo 0.5 + 9.5), no minimum; bonus limit 28,800 yuu Points a month = S$3,200 at 9 bonus points per S$ (T&C clause 7a)"
+        }
+      ],
+      "notes": "1 yuu Point = 0.28 miles (28,800 points = 8,000 KrisFlyer miles, moved in the yuu app) or 0.5% cash. yuu shops (Cold Storage / CS Fresh / Jasons Deli, Giant, Guardian, 7-Eleven, foodpanda / pandamart, Gojek, SimplyGo, Charge+, CHAGEE app, Singtel shops): 2.8 miles per S$ always; 10 miles per S$ in a calendar month with S$800 of eligible spend on the card AND purchases at 4 different of those shops. Both share one bonus limit of 28,800 points (8,000 miles) a month. Everything else: 0.14 miles per S$ (0.5 point). Above the bonus limit yuu shops earn 0.28 (app counts 0.14). Base points at yuu shops need the yuu ID scanned at payment. No bonus at Changi Airport stores or Cold Storage On The Go; no points on gift cards, tobacco, top-ups. Supplementary card spend counts for the principal. Checked against DBS yuu Card T&C (updated 30 Oct 2026) and the DBS product page on 14 Nov 2026."
+    },
+    "dbs_yuu_american_express_card": {
+      "name": "DBS yuu American Express",
+      "programme": "YUU",
+      "points_per_mile": 3.6,
+      "rounding": "per_1",
+      "base_mpd": {
+        "sgd": 0.14,
+        "fcy": 0.14
+      },
+      "default_channel": "any",
+      "exclude_mcc": [
+        "4784",
+        "4829",
+        "4900",
+        "5047",
+        "5199",
+        "5960",
+        "5993",
+        "6010",
+        "6011",
+        "6012",
+        "6050",
+        "6051",
+        "6211",
+        "6300",
+        "6381",
+        "6399",
+        "6513",
+        "6529",
+        "6530",
+        "6534",
+        "6540",
+        "7349",
+        "7511",
+        "7523",
+        "7995",
+        "8062",
+        "8211",
+        "8220",
+        "8241",
+        "8244",
+        "8249",
+        "8299",
+        "8398",
+        "8651",
+        "8661",
+        "8699",
+        "8999",
+        "9211",
+        "9222",
+        "9223",
+        "9311",
+        "9399",
+        "9402",
+        "9405"
+      ],
+      "buckets": [
+        {
+          "id": "yuu_full",
+          "label": "yuu shops, monthly target met",
+          "mpd": 10.0,
+          "match": {
+            "fcy": false,
+            "merchant": [
+              "COLD STORAGE|\\bCS FRESH\\b|JASONS? DELI|\\bGIANT\\b|\\bGUARDIAN\\b|7[- ]?ELEVEN|SEVEN[- ]ELEVEN|FOODPANDA|PANDA ?MART|PANDA SHOPS?\\b|\\bGOJEK\\b|SIMPLYGO|SIMPLY GO|BUS/MRT|CHARGE ?\\+|CHARGEPLUS|CHARGE PLUS|\\bCHAGEE\\b|SINGTEL (SHOP|EXCLUSIVE)"
+            ],
+            "not_merchant": [
+              "SINGTEL DASH|ON THE GO|\\bESSO\\b|CHANGI AIRPORT|\\bT[1-4] |JEWEL CHANGI"
+            ],
+            "min_shops": {
+              "count": 4,
+              "shops": {
+                "Cold Storage": "COLD STORAGE|\\bCS FRESH\\b|JASONS? DELI",
+                "Giant": "\\bGIANT\\b",
+                "Guardian": "\\bGUARDIAN\\b",
+                "7-Eleven": "7[- ]?ELEVEN|SEVEN[- ]ELEVEN",
+                "foodpanda": "FOODPANDA|PANDA ?MART|PANDA SHOPS?\\b",
+                "Gojek": "\\bGOJEK\\b",
+                "SimplyGo": "SIMPLYGO|SIMPLY GO|BUS/MRT",
+                "Charge+": "CHARGE ?\\+|CHARGEPLUS|CHARGE PLUS",
+                "CHAGEE": "\\bCHAGEE\\b",
+                "Singtel shop": "SINGTEL (SHOP|EXCLUSIVE)"
+              }
+            },
+            "instead_of": "yuu"
+          },
+          "cap": 822.86,
+          "period": "calendar",
+          "min_spend": 800,
+          "rounding": "per_1",
+          "tier_basis": "18% = 36 yuu Points per S$ (base 1 + bonus 9 + bonus 26) when the card has S$800 of eligible spend in the calendar month AND purchases at 4 different participating merchants (SimplyGo counts); bonus limit 28,800 yuu Points a month = S$822.86 at 35 bonus points per S$ (DBS yuu Card T&C, updated 30 Oct 2026, clauses 6-8)"
+        },
+        {
+          "id": "yuu",
+          "label": "yuu shops",
+          "mpd": 2.78,
+          "match": {
+            "fcy": false,
+            "merchant": [
+              "COLD STORAGE|\\bCS FRESH\\b|JASONS? DELI|\\bGIANT\\b|\\bGUARDIAN\\b|7[- ]?ELEVEN|SEVEN[- ]ELEVEN|FOODPANDA|PANDA ?MART|PANDA SHOPS?\\b|\\bGOJEK\\b|SIMPLYGO|SIMPLY GO|BUS/MRT|CHARGE ?\\+|CHARGEPLUS|CHARGE PLUS|\\bCHAGEE\\b|SINGTEL (SHOP|EXCLUSIVE)"
+            ],
+            "not_merchant": [
+              "SINGTEL DASH|ON THE GO|\\bESSO\\b|CHANGI AIRPORT|\\bT[1-4] |JEWEL CHANGI"
+            ]
+          },
+          "cap": 3200,
+          "period": "calendar",
+          "rounding": "per_1",
+          "tier_basis": "5% = 10 yuu Points per S$ (base 1 + bonus 9; SimplyGo 0.5 + 9.5), no minimum; bonus limit 28,800 yuu Points a month = S$3,200 at 9 bonus points per S$ (T&C clause 7a)"
+        }
+      ],
+      "notes": "1 yuu Point = 0.28 miles (28,800 points = 8,000 KrisFlyer miles, moved in the yuu app) or 0.5% cash. yuu shops (Cold Storage / CS Fresh / Jasons Deli, Giant, Guardian, 7-Eleven, foodpanda / pandamart, Gojek, SimplyGo, Charge+, CHAGEE app, Singtel shops): 2.8 miles per S$ always; 10 miles per S$ in a calendar month with S$800 of eligible spend on the card AND purchases at 4 different of those shops. Both share one bonus limit of 28,800 points (8,000 miles) a month. Everything else: 0.14 miles per S$ (0.5 point). Above the bonus limit yuu shops earn 0.28 (app counts 0.14). Base points at yuu shops need the yuu ID scanned at payment. No bonus at Changi Airport stores or Cold Storage On The Go; no points on gift cards, tobacco, top-ups. Supplementary card spend counts for the principal. Checked against DBS yuu Card T&C (updated 30 Oct 2026) and the DBS product page on 14 Nov 2026. Amex: 7-Eleven bonus only from 13 Aug 2026 (Amex accepted there since)."
     }
   }
 }
