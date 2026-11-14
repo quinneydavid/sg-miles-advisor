@@ -89,3 +89,19 @@ def test_old_anchored_rules_rewritten(pg):
     m = conn.execute("SELECT match FROM card_rules WHERE card_id = %s AND bucket = 'wx'", (cid,)).fetchone()["match"]
     assert engine.applies(m, {"merchant": "COLD STORAGE - JELITA", "pay": "mobile"})[0]
     assert store.unanchor_name_rules(conn) == 0                        # once only
+
+
+def test_maybank_world_10x_shops():
+    w, card, rules = wallet("maybank_world")
+    m = {r["bucket"]: r["match"] for r in rules}
+    shop = lambda name, pay="mobile", fcy=False: {"merchant": name, "pay": pay, "fcy": fcy, "mcc": "5812"}
+    for name in ["IMPERIAL TREASURE FINE TEOCHEW", "LES AMIS PTE LTD", "SUSHI JIN", "BATH & BODY WORKS ION", "NSRCC CHANGI", "TMCC TAMPINES"]:
+        assert engine.applies(m["tenx"], shop(name))[0], name
+    assert not engine.applies(m["tenx"], shop("IMPERIAL TREASURE", pay="online"))[0]       # never online
+    assert not engine.applies(m["tenx"], shop("LINOLEUM WORLD"))[0]
+    assert engine.applies(m["tenx_rws"], shop("COACH RWS LUXURY GALLERIA"))[0]
+    assert not engine.applies(m["tenx_rws"], shop("COACH ION ORCHARD"))[0]                  # RWS only
+    assert not engine.applies(m["petrol"], {"mcc": "5541", "pay": "online", "fcy": False})[0]
+    assert engine.applies(m["petrol"], {"mcc": "5542", "pay": "tap", "fcy": False})[0]
+    rate, rule, _, _ = engine.rate_card(card, rules, set(), shop("IMPERIAL TREASURE SUPER PEKING DUCK"))
+    assert rate == 4.0 and rule["bucket"] == "tenx"

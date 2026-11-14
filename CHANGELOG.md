@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.7
+- Maybank World Mastercard: the bank's 10X TREATS Points shops (4 miles per S$) besides petrol: the listed golf clubs, Imperial Treasure, the Les Amis group restaurants, Valiram stores and Luxury Galleria at Resorts World Sentosa (capped at 50,000 points, counted per calendar month). 10X is never paid online, so it is matched for payments in a shop only, petrol included (new channel `in_store`). Read from the bank's card page on 14 Nov 2026.
+
 ## 0.10.6
 - UOB Visa Signature: each S$1,000 minimum counts only its own kind of spend (foreign currency for the foreign bonus; taps, petrol and SimplyGo in Singapore dollars for the local one), as UOB's terms say. A foreign tap no longer counts toward the local minimum. Rule option `min_own`.
 - Maybank Man Utd: the Selected Categories of the card's terms (medical, schools, hospitals, telecoms, rent and others) earn 0.4 miles per S$ in Singapore dollars and never a match-day bonus. A rule can now set a rate below the card's normal one (`sets_base`).

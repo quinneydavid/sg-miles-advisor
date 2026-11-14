@@ -694,14 +694,47 @@
         {
           "id": "petrol",
           "no_assume": true,
-          "label": "Petrol (SGD, in person)",
+          "label": "Petrol stations in Singapore (in person)",
           "mpd": 4.0,
           "match": {
             "mcc": [
-              "5541"
+              "5541",
+              "5542"
             ],
-            "fcy": false
-          }
+            "fcy": false,
+            "channel": "in_store"
+          },
+          "tier_basis": "Maybank World Mastercard page (10X TREATS Points merchants, read 14 Nov 2026) and Privileges T&C (effective 1 Dec 2025): 10X = 4 mpd, not for online transactions, instead of (not on top of) 1X/7X/8X; the outlet must be on Maybank's records"
+        },
+        {
+          "id": "tenx",
+          "no_assume": true,
+          "label": "10X shops: golf clubs, Imperial Treasure, Les Amis group, Valiram stores (in person)",
+          "mpd": 4.0,
+          "match": {
+            "merchant": [
+              "APARO|PAR ?CLUB|LEONIAN|NSRCC|SENTOSA GOLF|\\bSICC\\b|SINGAPORE ISLAND COUNTRY|\\bTMCC\\b|TANAH MERAH COUNTRY|PARTEE|PRIME PADEL|IMPERIAL TREASURE|YI DIAN XIN|BISTRO DU VIN|JIIN OMAKASE|\\bJIIN\\b|\\bJINJO\\b|LA TAPERIA|LES AMIS|\\bLINO\\b|MUI KEE|NAM ?NAM|PEPERONI|PICOLINO|SCOTTS GRILL|SHABU JIN|SUKIYAKI JIN|SUSHI JIN|SUSHI RYUJIN|\\bTENJIN\\b|UNAGI YONDAIME|KIKUKAWA|WAGYU JIN|BATH ?(&|AND) ?BODY|MICHAEL KORS|\\bMLB\\b|\\bRITUALS\\b|STEVE MADDEN|VICTORIA'?S SECRET"
+            ],
+            "fcy": false,
+            "channel": "in_store"
+          },
+          "tier_basis": "Maybank World Mastercard page (10X TREATS Points merchants, read 14 Nov 2026) and Privileges T&C (effective 1 Dec 2025): 10X = 4 mpd, not for online transactions, instead of (not on top of) 1X/7X/8X; the outlet must be on Maybank's records. Valiram stores count only at the listed malls (Bath & Body Works: ION, VivoCity, Tampines Mall, MBS, Ngee Ann City, Causeway Point, Jewel; Michael Kors: VivoCity, Mandarin Gallery, MBS; MLB: Mandarin Gallery, VivoCity; Rituals: ION, VivoCity; Steve Madden: Ngee Ann City, VivoCity; Victoria's Secret: Mandarin Gallery, VivoCity, ION; and brands in IMM); the app matches the brand name, not the mall"
+        },
+        {
+          "id": "tenx_rws",
+          "no_assume": true,
+          "label": "10X at Luxury Galleria, Resorts World Sentosa (in person)",
+          "mpd": 4.0,
+          "match": {
+            "merchant": [
+              "(?=.*\\b(RWS|RESORTS ?WORLD|SENTOSA)\\b).*(BEAUTY LOVE|\\bCOACH\\b|FURLA|HUGO BOSS|LONGCHAMP|MICHAEL KORS|MONTBLANC|\\bOMEGA\\b|PANERAI|POLO RALPH|RALPH LAUREN|FERRAGAMO|SWAROVSKI|SWISS WATCH GALLERY|TORY BURCH|VERSACE|VICTORIA'?S SECRET|WEAR ?\\+ ?WHEN|LUXURY GALLERIA)"
+            ],
+            "fcy": false,
+            "channel": "in_store"
+          },
+          "cap": 5000,
+          "period": "calendar",
+          "tier_basis": "Maybank World Mastercard page (10X TREATS Points merchants, read 14 Nov 2026) and Privileges T&C (effective 1 Dec 2025): 10X = 4 mpd, not for online transactions, instead of (not on top of) 1X/7X/8X; the outlet must be on Maybank's records. Luxury Galleria brands at Resorts World Sentosa only; 'capped at 50,000 TREATS Points' (= S$5,000 at 10 points per S$; the page doesn't say per what period, the app counts a calendar month)"
         },
         {
           "id": "fcy",
@@ -728,7 +761,7 @@
           "rounding": "pooled"
         }
       ],
-      "notes": "Foreign currency: under S$800 of retail spend on the card in the calendar month = 0.4, S$800+ = 2.8 (7X), S$4,000+ = 3.2 (8X); the minimum counts local + foreign retail spend, not excluded transactions (made in the month and posted by the 7th of the next). FCY uncapped. Petrol stations in Singapore 4 mpd (10X), not online. Other 10X merchants: see the bank page. Education + hospitals earn. TREATS 2.5:1 (25K -> 10K miles, S$27.25, KrisFlyer must be enrolled in the TREATS SG app), no expiry. Checked against Maybank's World Mastercard Privileges T&C (effective 1 Dec 2025) and card page on 10 Nov 2026.",
+      "notes": "Foreign currency: under S$800 of retail spend on the card in the calendar month = 0.4, S$800+ = 2.8 (7X), S$4,000+ = 3.2 (8X); the minimum counts local + foreign retail spend, not excluded transactions (made in the month and posted by the 7th of the next). FCY uncapped. Petrol stations in Singapore 4 mpd (10X), not online. 10X (4 mpd) also at the bank's listed golf clubs, Imperial Treasure and Les Amis restaurants, Valiram stores and Luxury Galleria RWS (S$5,000 cap), in person only, read from the bank page on 14 Nov 2026. Education + hospitals earn. TREATS 2.5:1 (25K -> 10K miles, S$27.25, KrisFlyer must be enrolled in the TREATS SG app), no expiry. Checked against Maybank's World Mastercard Privileges T&C (effective 1 Dec 2025) and card page on 10 Nov 2026.",
       "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (Maybank World Mastercard Privileges T&C, effective 1 Dec 2025, General T&C g-i): 6012, 6050, 6529, 6530, 6534, 6010, 6011, 7511, 7349"
     },
     "maybank_xl": {

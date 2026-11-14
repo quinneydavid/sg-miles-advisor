@@ -5,7 +5,8 @@ Pay methods: 'mobile' (Apple/Google Pay), 'tap' (physical card contactless), 'on
 A rule asking for channel 'contactless' accepts mobile or tap; 'mobile' only accepts mobile; 'online' only online."""
 import re
 
-CHANNEL_OK = {"contactless": {"mobile", "tap"}, "mobile": {"mobile"}, "online": {"online"}}
+CHANNEL_OK = {"contactless": {"mobile", "tap"}, "mobile": {"mobile"}, "online": {"online"},
+              "in_store": {"mobile", "tap", "insert"}}   # any way of paying in a shop, not online (Maybank World 10X)
 
 
 def _mcc_in(mcc, specs):
