@@ -1,6 +1,7 @@
 """Writes into the catalogue with history: a changed rule closes the old row and opens a new one, and every change
 lands in catalogue_changes (what the weekly diff and the bot's "card changed" lines read)."""
 import json
+import re
 
 from psycopg.types.json import Jsonb
 
@@ -181,3 +182,24 @@ def apply_offer_terms(conn):
         t = dict(t, checked=doc.get("checked"))
         n += conn.execute("UPDATE signup_offers SET terms = %s WHERE card_name = %s AND active", (Jsonb(t), t["card_name"])).rowcount
     return n
+
+
+def name_pattern(names):
+    """One regex for a list of shop names that finds them inside statement text ("COLD STORAGE - JELITA",
+    "GOJEK SINGAPORE"), not only as the whole text. Case is ignored where it is used."""
+    return r"(?<![A-Za-z0-9])(" + "|".join(re.escape(n) for n in names) + r")(?![A-Za-z0-9])"
+
+
+def unanchor_name_rules(conn):
+    """Name lists written by catalogue runs before 0.10.6 matched the whole text only (^(...)$). Rewrite them once."""
+    n = 0
+    for r in conn.execute("SELECT id, match FROM card_rules WHERE depth = 'headline' AND valid_to IS NULL AND match ? 'merchant'").fetchall():
+        m = r["match"]
+        pats = m.get("merchant") or []
+        new = [r"(?<![A-Za-z0-9])(" + p[2:-2] + r")(?![A-Za-z0-9])" if isinstance(p, str) and p.startswith("^(") and p.endswith(")$") else p
+               for p in pats]
+        if new != pats:
+            conn.execute("UPDATE card_rules SET match = %s WHERE id = %s", (Jsonb({**m, "merchant": new}), r["id"]))
+            n += 1
+    return n
+

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.6
+- UOB Visa Signature: each S$1,000 minimum counts only its own kind of spend (foreign currency for the foreign bonus; taps, petrol and SimplyGo in Singapore dollars for the local one), as UOB's terms say. A foreign tap no longer counts toward the local minimum. Rule option `min_own`.
+- Maybank Man Utd: the Selected Categories of the card's terms (medical, schools, hospitals, telecoms, rent and others) earn 0.4 miles per S$ in Singapore dollars and never a match-day bonus. A rule can now set a rate below the card's normal one (`sets_base`).
+- OCBC Rewards: spend in the 6 mpd promotion uses up the 4 mpd bonus limit as well, since OCBC may count it toward the same 10,000 OCBC$ (`shares_cap`).
+- Agoda and Kaligo bonuses that are paid only when booked through the bank's own link (Citi PremierMiles, UOB PRVI Miles) are shown on Which card? with that condition, but past spend counts at the normal rate (`link_only`).
+- Shop-name lists from the catalogue find the name inside statement text ("COLD STORAGE - JELITA") instead of matching the whole text only. Lists stored by earlier versions are rewritten at the next start.
+
 ## 0.10.5
 - DBS yuu Visa and DBS yuu American Express are hand-checked against DBS's own terms (updated 30 Oct 2026): 2.78 miles per S$ at yuu shops with no minimum; 10 miles per S$ in a calendar month with S$800 of eligible spend on the card and purchases at 4 different yuu shops; both draw on one bonus limit of 28,800 yuu Points (8,000 miles) a month; 0.14 miles per S$ elsewhere; DBS's exclusion list; Singapore only. Shop names now match the way they appear on statements (for example "COLD STORAGE - JELITA", "BUS/MRT").
 - A minimum can now also ask for purchases at a number of different shops (`min_shops` in a rule's match). Wallet, Which card?, the summary and the alerts say how many shops are still needed and which ones are open.

@@ -899,6 +899,8 @@ def lookup(conn, q, person):
             if ns and x["extra"].get("locked"):
                 bits.append(f"and {sl} more of its shops this {per} (it needs {ns} different ones)" if sl else
                             f"and purchases at {ns} different shops of its list in the {per}" if sl is None else "")
+        if isinstance(r.get("match"), dict) and r["match"].get("link_only"):
+            bits.append(r.get("conditions") or "only when booked through the bank's own link")
         if r["depth"] != "full":
             bits.append("not checked against the bank's terms")
         if x["extra"].get("used_up"):

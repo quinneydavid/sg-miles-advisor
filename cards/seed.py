@@ -95,6 +95,7 @@ def seed(conn):
             excl += [m for spec in sets.get(s, {}).get("mcc", []) for m in store.expand_mcc(spec)]
         store.set_exclusions(conn, cid, list(dict.fromkeys(excl)), "cards.json")
 
+    store.unanchor_name_rules(conn)
     for mcc, name in data("mcc-names.json")["names"].items():
         conn.execute("INSERT INTO mcc_codes (mcc, name) VALUES (%s,%s) ON CONFLICT (mcc) DO UPDATE SET name = EXCLUDED.name",
                      (mcc, name))

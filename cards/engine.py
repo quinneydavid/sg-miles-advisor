@@ -117,6 +117,11 @@ def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None)
     if mcc and mcc in excluded_mccs:
         return 0.0, None, "no points on this MCC", {}
     base = float((card["base_fcy"] if p.get("fcy") else card["base_sgd"]) or 0)
+    low_rule = None
+    for r in rules:   # a lower rate for some kinds of spend replaces the normal one (Maybank Man Utd)
+        if isinstance(r.get("match"), dict) and r["match"].get("sets_base") and applies(r["match"], p)[0]:
+            base, low_rule = float(r["rate"]), r
+    rules = [r for r in rules if not (isinstance(r.get("match"), dict) and r["match"].get("sets_base"))]
     best, best_rule, extra = base, None, {}
     mins = (room or {}).get("__min__") if room is not None else None   # {bucket: S$ still to spend for its minimum}
     shops = (room or {}).get("__shops__") or {}   # {bucket: different shops still needed (DBS yuu: 4)}
@@ -161,7 +166,8 @@ def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None)
     extra["used_up"] = used_up
     if best_rule is None and not used_up:
         extra = {}
-    note = "base rate" if best_rule is None else ""
+    note = ("lower rate here: " + (low_rule.get("label") or "this kind of shop")) if best_rule is None and low_rule else \
+        "base rate" if best_rule is None else ""
     return best, best_rule, note, extra
 
 

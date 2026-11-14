@@ -228,13 +228,13 @@ def run_wiki(conn, stats, today):
             if re.search(r"eligible|promotional|selected merchant|partner|participating", cond, re.I):
                 mccs = []   # merchant-specific: match these shop names, never a whole MCC
                 names = sorted(set(b["names"]))[:150]
-                match["merchant"] = ["^(" + "|".join(re.escape(n) for n in names) + ")$"]
+                match["merchant"] = [store.name_pattern(names)]
             else:
                 mccs = [m for m, k in b["mccs"].items() if k >= 3]
                 if mccs:
                     match["mcc"] = sorted(mccs)
                 else:
-                    match["merchant"] = ["^(" + "|".join(re.escape(n) for n in sorted(set(b["names"]))[:150]) + ")$"]
+                    match["merchant"] = [store.name_pattern(sorted(set(b["names"]))[:150])]
             store.upsert_rule(conn, c["id"], bucket, {
                 "label": (cond[:80] or "Bonus merchants"), "rate": rate, "match": match, "cap": cap,
                 "cap_period": "calendar" if cap else "none", "min_spend": mn, "conditions": cond or None,

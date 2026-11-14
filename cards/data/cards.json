@@ -193,7 +193,8 @@
           "match": {
             "merchant": [
               "AGODA"
-            ]
+            ],
+            "link_only": true
           },
           "until": "2027-08-15",
           "provisional": "only bookings made through agoda.com/prvimiles and paid to Agoda (not Japan stays, not pay-at-hotel); bonus UNI$ credited within 3 months after the stay"
@@ -255,7 +256,8 @@
           "label": "Overseas (FCY)",
           "mpd": 4.0,
           "match": {
-            "fcy": true
+            "fcy": true,
+            "min_own": true
           },
           "cap": 1200,
           "min_spend": 1000,
@@ -267,6 +269,7 @@
           "label": "Contactless + petrol + SimplyGo",
           "mpd": 4.0,
           "match": {
+            "fcy": false,
             "any_of": [
               {
                 "channel": "contactless"
@@ -286,7 +289,8 @@
             "not_merchant": [
               "\\bSPC\\b",
               "\\bSHELL\\b"
-            ]
+            ],
+            "min_own": true
           },
           "cap": 1200,
           "min_spend": 1000,
@@ -903,7 +907,36 @@
           "label": "EPL win day",
           "mpd": 2.8,
           "match": {
-            "match_day": "win"
+            "match_day": "win",
+            "not_mcc": [
+              "6513",
+              "7399",
+              "4119",
+              "4812",
+              "4814",
+              "5047",
+              "5122",
+              "5912",
+              "5975",
+              "5976",
+              "8011",
+              "8021",
+              "8031",
+              "8041",
+              "8042",
+              "8043",
+              "8049",
+              "8050",
+              "8062",
+              "8071",
+              "8099",
+              "8211",
+              "8220",
+              "8241",
+              "8244",
+              "8249",
+              "8299"
+            ]
           },
           "cap": 2000,
           "period": "match_day"
@@ -913,12 +946,80 @@
           "label": "EPL draw day (1 per month; bank terms cover the 2025/26 season only)",
           "mpd": 1.6,
           "match": {
-            "match_day": "draw"
+            "match_day": "draw",
+            "not_mcc": [
+              "6513",
+              "7399",
+              "4119",
+              "4812",
+              "4814",
+              "5047",
+              "5122",
+              "5912",
+              "5975",
+              "5976",
+              "8011",
+              "8021",
+              "8031",
+              "8041",
+              "8042",
+              "8043",
+              "8049",
+              "8050",
+              "8062",
+              "8071",
+              "8099",
+              "8211",
+              "8220",
+              "8241",
+              "8244",
+              "8249",
+              "8299"
+            ]
           },
           "cap": 2000,
           "period": "match_day",
           "max_per_month": 1,
           "provisional": "Maybank's terms (March 2026) grant the draw bonus for the 2025/26 season; no 2026/27 extension published as of 10 Nov 2026"
+        },
+        {
+          "id": "low",
+          "label": "medical, schools, telecoms, rent and other Selected Categories",
+          "mpd": 0.4,
+          "match": {
+            "fcy": false,
+            "mcc": [
+              "6513",
+              "7399",
+              "4119",
+              "4812",
+              "4814",
+              "5047",
+              "5122",
+              "5912",
+              "5975",
+              "5976",
+              "8011",
+              "8021",
+              "8031",
+              "8041",
+              "8042",
+              "8043",
+              "8049",
+              "8050",
+              "8062",
+              "8071",
+              "8099",
+              "8211",
+              "8220",
+              "8241",
+              "8244",
+              "8249",
+              "8299"
+            ],
+            "sets_base": true
+          },
+          "tier_basis": "5 TREATS Points per S$5 on local spend in the Selected Categories of cl. 8 (0.4 mpd); in foreign currency they earn the normal 1.12; never a match-day bonus (Maybank Man Utd T&C, March 2026, cl. 5(b)-(d), cl. 8)"
         }
       ],
       "notes": "Normal or loss day 1.12, uncapped. Bonus day = the match's UK start date, spent that date 00:00-23:59 SGT. One draw bonus a month. Low-rate categories: 0.4 in S$, 1.12 in foreign currency, never a match-day bonus (T&C cl. 5). Utilities earn nothing. Points per S$5 block. The draw bonus is only confirmed for the 2025/26 season. Checked against Maybank's card T&C (March 2026) on 10 Nov 2026.",
@@ -944,7 +1045,8 @@
           "match": {
             "merchant": [
               "KALIGO"
-            ]
+            ],
+            "link_only": true
           },
           "until": "2026-12-31",
           "provisional": "only via kaligo.com/bonus-miles; bonus credited within 2 calendar months after the check-out month"
@@ -957,7 +1059,8 @@
           "match": {
             "merchant": [
               "AGODA"
-            ]
+            ],
+            "link_only": true
           },
           "until": "2026-12-31",
           "provisional": "only via agoda.com/bonusmiles, prepaid hotels (room charge); book by 31 Dec 2026, stay by 30 Apr 2027; bonus credited within 2 months after check-out"
@@ -1007,12 +1110,16 @@
             "not_mcc": [
               "5262",
               "5411"
-            ]
+            ],
+            "shares_cap": {
+              "four": 1.5556
+            }
           },
           "cap": 1000,
           "period": "calendar",
           "until": "2027-03-31",
-          "shares_cap_with": "four"
+          "shares_cap_with": "four",
+          "tier_basis": "15X = 15 OCBC$ per S$ (14 above the base 1); OCBC may count this bonus toward the 10,000 OCBC$ monthly limit of the 4 mpd bonus (9 per S$), so each S$1 here takes S$1.56 of that room"
         },
         {
           "id": "four",

@@ -85,6 +85,15 @@ class Wallet:
         self.mdays = defaultdict(set)   # (card, bucket, month) -> the match days that already took the bonus
         self.pending = False            # the last earn() met a match day whose result is not in yet
 
+    def counts_for(self, rule, line):
+        """Does this line match the rule (its own kind of spend), for minimums counted per bucket?"""
+        m = {k: v for k, v in rule["match"].items() if k not in ("min_own", "shares_cap", "link_only", "sets_base")}
+        pay = line.get("pay") or ("online" if line.get("online") else self.store)
+        fcy = bool(line.get("fcy"))
+        p = {"mcc": line.get("mcc"), "pay": pay, "fcy": fcy, "currency": line.get("currency") if fcy else None,
+             "merchant": line.get("merchant"), "match_any": True}
+        return engine.applies(m, p)[0]
+
     def fork(self, off=None):
         w = Wallet(self.cards, self.rules, self.excl, self.boosts, self.amounts, self.closes, self.app, self.store, self.hist)
         w.off = set(off or ())
@@ -121,6 +130,14 @@ class Wallet:
         if mcc and mcc in self.excl.get(cid, ()):
             return 0.0, None, None
         amt = line["amount"]
+        if hits and any(isinstance(r["match"], dict) and (r["match"].get("sets_base") or r["match"].get("link_only")) for r in hits):
+            # a rate below the card's normal one for some kinds of spend (Maybank Man Utd: medical, schools, telecoms)
+            for r in hits:
+                if isinstance(r["match"], dict) and r["match"].get("sets_base"):
+                    base = float(r["rate"])
+            # bonuses paid only when booked through the bank's own link: a statement line can't show that, so past
+            # spend is counted at the normal rate (Which card? still names the bonus and the link)
+            hits = [r for r in hits if not (isinstance(r["match"], dict) and (r["match"].get("sets_base") or r["match"].get("link_only")))]
         if not hits:
             return amt * base * f, None, None
         day_is = self.results.get(self.fixtures.get(cid), {}).get(d) if cid in self.fixtures else None
@@ -163,6 +180,12 @@ class Wallet:
             pk = self.key(cid, rule, d)
             if pk:
                 self.used[(cid, rule["bucket"], pk)] += bonus
+                # buckets that draw on one bonus-points limit (OCBC Rewards: the 6 mpd promotion may count toward the
+                # 10,000 OCBC$ limit of the 4 mpd bonus): spend here uses up the others' room in their own S$
+                sc = rule["match"].get("shares_cap") if isinstance(rule["match"], dict) else None
+                if sc:
+                    for other, ratio in sc.items():
+                        self.used[(cid, other, pk)] += bonus * float(ratio)
             if isinstance(rule["match"], dict) and rule["match"].get("match_day"):
                 self.mdays[(cid, rule["bucket"], ym(d))].add(d)
         return miles, rule, over
@@ -215,7 +238,7 @@ def assign(base, lines, ids, enforce_min=True):
         for ln in spend:
             miles, cid = w.best(ln, ids)
             per.append((ln, cid, miles))
-            card_lines[cid].append((ln["date"], ln["amount"], ln.get("merchant")))
+            card_lines[cid].append((ln["date"], ln["amount"], ln.get("merchant"), ln))
         new = (_unmet(base, card_lines) - off) if enforce_min else set()
         if not new:
             break
@@ -308,7 +331,7 @@ def _pass(base, spend, held, allowed, off):
         # spend that counts toward a card's minimum: not what the card excludes (banks leave excluded transactions out)
         for k, c in (("actual", cid), ("wallet", w_cid), ("any", y_cid)):
             if not (ln.get("mcc") and ln["mcc"] in base.excl.get(c, ())):
-                card_lines[k][c].append((ln["date"], ln["amount"], ln.get("merchant")))
+                card_lines[k][c].append((ln["date"], ln["amount"], ln.get("merchant"), ln))
         out.append({**ln, "match_pending": waiting, "actual": a_miles, "wallet_card": w_cid, "wallet": w_miles, "any_card": y_cid, "any": y_miles,
                     "wallet_alts": w_alts, "add_alts": y_alts, "wallet_over": w_over,
                     "real_alts": real_alts, "cap_state": cap_state,
@@ -333,7 +356,10 @@ def card_totals(base, cid, lines):
     """{(bucket, period key): spend on the card} for every rule of the card with a period."""
     tot = defaultdict(float)
     for r in base.rules.get(cid, []):
-        for d, amt, *_ in lines:
+        own = isinstance(r.get("match"), dict) and r["match"].get("min_own")
+        for d, amt, *rest in lines:
+            if own and not (len(rest) > 1 and base.counts_for(r, rest[1])):
+                continue   # a minimum counted on the bucket's own kind of spend only (UOB Visa Signature)
             k = base.key(cid, r, d) or ym(d)
             tot[(r["bucket"], k)] += amt
     return tot
