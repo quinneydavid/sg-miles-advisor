@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.4
+- Which card? no longer lists "Your usual places" under the search box.
+
 ## 0.10.3
 - Renamed SG Miles Advisor. The repository is `quinneydavid/sg-miles-advisor` and the image is `ghcr.io/quinneydavid/sg-miles-advisor`; the old repository address redirects. An installation that names the old image keeps running on 0.10.2 until its compose file names the new one. No change to the data or the settings.
 - README: the problem the app solves comes first, then what each part does.

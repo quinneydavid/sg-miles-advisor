@@ -766,27 +766,6 @@ def pay_choices(person):
     return PAY, ("tap" if m == "tap" else "mobile")
 
 
-def usual_shops(conn, person, pay):
-    """One tap for the places this person pays most (their last two months), instead of typing."""
-    today = datetime.date.today()
-    months = [(today.replace(day=1) - datetime.timedelta(days=d)).strftime("%Y-%m") for d in (0, 31)]
-    try:
-        lines = cache.lines(conn, person["id"], months)
-    except crypto.Unavailable:
-        return ""
-    seen = {}
-    for ln in lines:
-        name = " ".join(str(ln.get("merchant") or "").split()[:3]).strip()
-        if len(name) >= 3 and ln.get("amount", 0) > 0:
-            k = name.lower()
-            seen[k] = (seen.get(k, (0, name))[0] + 1, name)
-    top = [n for _, n in sorted(seen.values(), key=lambda v: -v[0])[:8]]
-    if not top:
-        return ""
-    return ("<p class=muted style='margin:4px 0 6px'><small>Your usual places</small></p><p class=links>" + "".join(
-        f"<a class=chip href='/?q={urllib.parse.quote(n)}&pay={e(pay or '')}'>{e(n.title() if n.isupper() else n)}</a>" for n in top) + "</p>")
-
-
 def lookup(conn, q, person):
     """Which card? Shop name or MCC + how you pay -> best card in your wallet, then the best in the catalogue.
     Changing how you pay re-asks at once (app.js) and keeps the chosen shop + MCC."""
@@ -825,7 +804,6 @@ def lookup(conn, q, person):
              if fcy else "") + "</form>")
     body = "<h1>Which card?</h1>" + form
     if not text:
-        body += usual_shops(conn, person, pay)
         body += fee_prompts(conn, person, back="/", kinds=("ask", "chase"))   # a fee merely coming up lives on Wallet
         if not person["held_cards"]:
             body += "<div class=panel><p>Pick the cards you hold first, so the answer uses your wallet.</p><a href=/settings>Choose your cards →</a></div>"
