@@ -79,3 +79,32 @@ def test_currency_rule_needs_that_currency():
     assert not engine.applies(m, {"fcy": True, "currency": "JPY"})[0]
     assert not engine.applies(m, {"fcy": True})[0]            # currency not known: the plain foreign rate
     assert not engine.applies(m, {"fcy": False, "currency": "THB"})[0]
+
+
+def _x(rate, rule, extra, base=0.4, kind="miles"):
+    return {"card": {"base_sgd": base, "base_fcy": base, "kind": kind}, "rule": rule, "rate": rate, "extra": extra}
+
+
+def test_for_amount_splits_at_the_limit_left():
+    # 4 mpd with S$200 of its limit left: a S$500 purchase = 200 x 4 + 300 x 0.4 = 920 miles
+    a = engine.for_amount(_x(4.0, LADY_RULE, {"cap": 750, "left": 200.0}), 500)
+    assert (a["bonus"], a["over"], round(a["earned"])) == (200.0, 300.0, 920) and round(a["eff"], 2) == 1.84
+    # no spend known: the whole cap is assumed free
+    assert engine.for_amount(_x(4.0, LADY_RULE, {"cap": 750}), 1000)["bonus"] == 750
+    # no cap: all of it at the bonus rate; base rate card: all at base
+    assert engine.for_amount(_x(4.0, dict(LADY_RULE, cap=None), {}), 1000)["earned"] == 4000
+    assert engine.for_amount(_x(1.2, None, {}), 100)["earned"] == 120
+    # cashback card: S$ back and % per S$
+    a = engine.for_amount(_x(5.0, dict(LADY_RULE, cap=100), {"cap": 100}, base=0.25, kind="cashback"), 200)
+    assert round(a["earned"], 2) == 5.25 and round(a["eff"], 3) == 2.625
+
+
+def test_purchase_that_reaches_the_minimum_unlocks_it():
+    rule = {"bucket": "fcy", "rate": 2.8, "match": {"mcc": ["5812"]}, "cap": None, "min_spend": 800, "promo_until": None}
+    room = {"__min__": {"fcy": 300.0}}
+    rate, _, _, extra = engine.rate_card(CARD, [rule], set(), dict(P, amount=350), room=room)
+    assert rate == 2.8 and extra["unlocks"] and not extra["locked"]
+    rate, _, _, extra = engine.rate_card(CARD, [rule], set(), dict(P, amount=100), room=room)
+    assert extra["locked"]
+    # no spend known: only a purchase as big as the whole minimum unlocks it
+    assert engine.rate_card(CARD, [rule], set(), dict(P, amount=800))[3]["unlocks"]

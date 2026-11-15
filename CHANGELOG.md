@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.8
+- Which card? takes the price (optional). Each card then shows the miles that purchase earns: the part that fits the bonus limit left this period earns the bonus rate, the rest the card's normal rate, and the cards are ranked by miles earned. A purchase that reaches a card's minimum spend by itself counts as reaching it. When the best card's bonus limit runs out part way, a tip says how to split the bill with the next card. The bot API takes `amt` and answers `for_price` per card.
+- Which card? says when Atome lists the shop (new catalogue step `atome` reads the shop list from atome.sg's own sitemap each week). With a price it compares paying in 3 Atome parts (charged as shop type 5999 online, one part a month, the next two in fresh bonus-limit months) with paying at once. The bot API answers `atome`.
+
 ## 0.10.7
 - Maybank World Mastercard: the bank's 10X TREATS Points shops (4 miles per S$) besides petrol: the listed golf clubs, Imperial Treasure, the Les Amis group restaurants, Valiram stores and Luxury Galleria at Resorts World Sentosa (capped at 50,000 points, counted per calendar month). 10X is never paid online, so it is matched for payments in a shop only, petrol included (new channel `in_store`). Read from the bank's card page on 14 Nov 2026.
 

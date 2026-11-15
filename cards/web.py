@@ -776,6 +776,101 @@ def pay_choices(person):
     return PAY, ("tap" if m == "tap" else "mobile")
 
 
+def price(v):
+    """The optional purchase price on Which card?: S$ > 0 and sane, else None."""
+    try:
+        a = round(float(str(v or "").replace(",", "").replace("$", "").strip()), 2)
+    except ValueError:
+        return None
+    return a if 0 < a <= 1_000_000 else None
+
+
+def earned(x):
+    a = x["amt"]
+    return f"S${a['earned']:,.2f}" if x["card"]["kind"] == "cashback" else f"{a['earned']:,.0f}"
+
+
+def earned_unit(x):
+    return "back" if x["card"]["kind"] == "cashback" else "miles"
+
+
+def split_hint(b, rest, fcy):
+    """The best card's bonus limit runs out part way through this purchase: if the shop splits the bill, the overflow
+    is better on the next card. Only worth saying for 50+ miles."""
+    a = b.get("amt")
+    if not a or a["over"] <= 0.005 or b["card"]["kind"] == "cashback":
+        return ""
+    best, gain = None, 0.0
+    for y in rest:
+        if y["card"]["kind"] == "cashback":
+            continue
+        g = engine.for_amount(y, a["over"], fcy)["earned"] - a["over"] * a["base"]
+        if g > gain:
+            best, gain = y, g
+    if best is None or gain < 50:
+        return ""
+    return (f"<div class=hint>💡 Split the bill: {money(a['bonus'])} on {e(b['card']['name'])} and {money(a['over'])} on "
+            f"{e(best['card']['name'])} earns about {gain:,.0f} more miles than putting it all on one card.</div>")
+
+
+def atome_slug(conn, name):
+    """The Atome shop page for this shop name, or None. Atome's slugs are the name in lower case with dashes
+    ('Marks & Spencer' -> marks-spencer); also tried: the name's first words ('Gain City Megastore' -> gain-city)."""
+    words = re.sub(r"[^a-z0-9]+", " ", (name or "").lower().replace("&", " ").replace("'", "")).split()
+    words = [w for w in words if w not in ("singapore", "sg", "pte", "ltd")]
+    keys = ["-".join(words[:n]) for n in range(len(words), 0, -1)]
+    if not keys:
+        return None
+    rows = {r["slug"] for r in conn.execute("SELECT slug FROM atome_merchants WHERE slug = ANY(%s)", (keys,)).fetchall()}
+    return next((k for k in keys if k in rows), None)
+
+
+ATOME_TIP = ("Atome charges your card as an online purchase under shop type 5999, one third now and one third in each of "
+             "the next two months. Pay the 2nd and 3rd parts yourself in the Atome app: some banks treat Atome's automatic "
+             "billing as a recurring payment and give nothing.")
+
+
+# cards whose bank terms reward MCC 5999 online but where readers report Atome payments not earning the bonus
+# (The MileLion, "What's the best card to use for Atome?", 8 Feb 2026)
+ATOME_MIXED = {"uob_preferred_platinum"}
+
+
+def atome_panel(conn, person, slug, amt, direct, room):
+    """Paying with Atome instead: the best card for each third (this month's bonus limit left for the 1st, the full
+    limit for the next two months), against paying it all at once on the best card."""
+    link = f"<a href='https://www.atome.sg/paylater-merchants/{e(slug)}' rel=noopener target=_blank>Atome lists this shop</a>"
+    if not amt:
+        return (f"<div class=panel style='margin-top:16px'><p><b>Atome:</b> {link}: pay in 3, no interest. Enter the price "
+                f"to see if splitting it earns more.</p><p class=muted><small>{e(ATOME_TIP)}</small></p></div>")
+    third = round(amt / 3, 2)
+    p = {"mcc": "5999", "pay": "online", "fcy": False, "currency": "", "merchant": "ATOME", "today": datetime.date.today(),
+         "amount": third}
+    held = set(person["held_cards"])
+
+    def best(rm):
+        r = [x for x in engine.rank(conn, p, held, person["excluded_banks"], person["boost_amounts"], rm) if x["held"]
+             and x["card"]["kind"] != "cashback"]
+        return max(r, key=lambda x: x["amt"]["earned"], default=None)
+    now, later = best(room), best(None)
+    if not now or not later:
+        return ""
+    total = now["amt"]["earned"] + 2 * later["amt"]["earned"]
+    same = now["card"]["id"] == later["card"]["id"]
+    on = (f"all three on {e(now['card']['name'])}" if same else
+          f"the 1st on {e(now['card']['name'])}, the next two on {e(later['card']['name'])}")
+    d = direct["amt"]["earned"] if direct and direct.get("amt") and direct["card"]["kind"] != "cashback" else 0
+    diff = total - d
+    verdict = (f"<b>{diff:,.0f} more miles</b> than paying at once" if diff >= 1 else
+               f"{-diff:,.0f} fewer miles than paying at once" if diff <= -1 else "the same miles as paying at once")
+    mixed = [x["card"]["name"] for x in ((now,) if same else (now, later)) if x["card"]["id"] in ATOME_MIXED]
+    warn = (f"<p class=hint>⚠️ {e(' and '.join(mixed))}: the bank's terms count Atome's shop type, but people report "
+            "Atome payments on this card not always earning the bonus.</p>") if mixed else ""
+    return (f"<div class=panel style='margin-top:16px'><p><b>Atome:</b> {link}. 3 × {money(third)}, {on}: about "
+            f"{total:,.0f} miles{', ' + verdict + ' on ' + e(direct['card']['name']) if d else ''}.</p>"
+            f"<p class=muted><small>Plus Atome+ points (about 0.2 miles per S$). Next months' parts assume those months' "
+            f"bonus limits are free. {e(ATOME_TIP)}</small></p>{warn}</div>")
+
+
 def lookup(conn, q, person):
     """Which card? Shop name or MCC + how you pay -> best card in your wallet, then the best in the catalogue.
     Changing how you pay re-asks at once (app.js) and keeps the chosen shop + MCC."""
@@ -784,6 +879,7 @@ def lookup(conn, q, person):
     pay = q.get("pay") if q.get("pay") in dict(choices) else None
     fcy = q.get("fcy") == "1"
     cur = q.get("cur") if fcy and q.get("cur") in dict(CURRENCIES) else ""
+    amt = price(q.get("amt"))
     merchant, mccs, matches = None, [], []
     if text and re.fullmatch(r"\d{4}", text):
         mccs = [text]
@@ -808,7 +904,9 @@ def lookup(conn, q, person):
             f"{'' if text else ' autofocus'}>{hidden}<div class=seg>" +
             "".join(f"<label><input type=radio name=pay value={k} {'checked' if k == pay else ''}><span>{v}</span></label>"
                     for k, v in choices) +
-            f"</div><label class=toggle><input type=checkbox name=fcy value=1 {'checked' if fcy else ''}> Overseas / foreign currency</label>" +
+            f"</div><label class=toggle>Price S$ <input name=amt type=number inputmode=decimal min=0 step=0.01 "
+            f"value='{e(f'{amt:g}' if amt else '')}' placeholder='optional' style='width:9em'></label>"
+            f"<label class=toggle><input type=checkbox name=fcy value=1 {'checked' if fcy else ''}> Overseas / foreign currency</label>" +
             ("<label class=toggle>Charged in <select name=cur><option value=''>another currency</option>" + "".join(
                 f"<option value={k}{' selected' if k == cur else ''}>{v}</option>" for k, v in CURRENCIES) + "</select></label>"
              if fcy else "") + "</form>")
@@ -820,7 +918,8 @@ def lookup(conn, q, person):
         return "Which card?", body
     held = set(person["held_cards"])
     ph = photos(conn)
-    base_q = urllib.parse.urlencode({"q": text, "pay": pay, **({"fcy": "1"} if fcy else {}), **({"cur": cur} if cur else {})})
+    base_q = urllib.parse.urlencode({"q": text, "pay": pay, **({"fcy": "1"} if fcy else {}), **({"cur": cur} if cur else {}),
+                                     **({"amt": f"{amt:g}"} if amt else {})})
     if not merchant and matches:
         body += "<h2>Which one?</h2><div class=list>" + "".join(
             f"<a class=row href='/?{base_q}&m={urllib.parse.quote(x['slug'])}'><span class=grow>{e(x['name'])}</span>"
@@ -828,7 +927,8 @@ def lookup(conn, q, person):
             f"<a class=row href='/merchant?name={urllib.parse.quote(text)}'><span class=grow>None of these: add “{e(text)}”</span>"\
             "<span class=muted>+</span></a></div>"
         return "Which card?", body
-    p = {"mcc": chosen, "pay": pay, "fcy": fcy, "currency": cur, "merchant": merchant["name"] if merchant else text, "today": datetime.date.today()}
+    p = {"mcc": chosen, "pay": pay, "fcy": fcy, "currency": cur, "merchant": merchant["name"] if merchant else text, "today": datetime.date.today(),
+         "amount": amt}
     other_types = ""
     if merchant:
         ch = {"online": "Online", "in_person": "In store", "both": "Online + in store"}.get(merchant.get("channel") or "", "")
@@ -864,6 +964,8 @@ def lookup(conn, q, person):
         return f"{num(x['rate'])}{x['unit']}"
 
     def rate_cell(x):
+        if x.get("amt"):
+            return f"{earned(x)}<small>{e(earned_unit(x))}</small>"
         t = shown(x)
         if t.endswith(" mpd"):
             return f"{t[:-4]}<small>miles per S$</small>"
@@ -872,10 +974,20 @@ def lookup(conn, q, person):
     def why(x):
         r = x["rule"]
         today_is = x["extra"].get("match")   # a card whose rate depends on today's match says how today stands
+        a = x.get("amt")
         if not r:
             note = "base rate not known yet" if shown(x) == "?" else x["note"]
+            if a and shown(x) != "?" and x["rate"]:
+                note += f" · {shown(x)} on all of it"
             return f"{note} · {today_is}" if today_is else note
         bits = [advise.label(r)] + ([today_is] if today_is else [])
+        if a and a["over"] > 0.005:
+            unknown = not a["base"] and x["card"]["base_sgd"] is None
+            bits.append(f"{money(a['bonus'])} at {num(x['rate'])}{x['unit'].strip()}, the other {money(a['over'])} is over "
+                        "the bonus limit and earns " + ("the base rate (not known, counted as 0)" if unknown
+                                                         else f"{num(a['base'])}{x['unit'].strip()}"))
+        if x["extra"].get("unlocks"):
+            bits.append(f"this purchase reaches its {money(r['min_spend'])} minimum")
         cap = x["extra"].get("cap", r["cap"])
         left = x["extra"].get("left")
         per = "statement month" if r["cap_period"] == "statement" else "month"
@@ -885,7 +997,7 @@ def lookup(conn, q, person):
             bits.append(f"bonus on the first {money(cap)} a {per}")
         for bl in x["extra"].get("boosts", []):
             bits.append(f"boost: {bl}")
-        if r["min_spend"]:
+        if r["min_spend"] and not x["extra"].get("unlocks"):
             ml = x["extra"].get("min_left")
             if not x["extra"].get("locked"):
                 bits.append(f"{money(r['min_spend'])} minimum reached")
@@ -926,14 +1038,22 @@ def lookup(conn, q, person):
         nb = b["extra"].get("next")
         hint = (f"<div class=hint>💡 With S${nb[1]:,.0f} in {e(nb[0])} this becomes {num(nb[2])} miles per S$. "
                 f"<a href='/card/{e(b['card']['id'])}#boosts'>Set your balance</a></div>") if nb else ""
+        if b.get("amt"):   # with a price: what this purchase earns, then the rate after any bonus limit
+            num_part, unit_part = earned(b), f"{earned_unit(b)} on {money(amt)}"
+            if b["amt"]["over"] > 0.005 or b["extra"].get("unlocks"):
+                unit_part += f" (works out at {num(b['amt']['eff'])} {'%' if b['card']['kind'] == 'cashback' else 'per S$'})"
         body += (f"<div class='pick now'><a href='/card/{e(b['card']['id'])}'>{look.face(b['card'], 'lg', ph.get(b['card']['id']))}</a>"
                  f"<div class=info><div class=label>Use</div><div class=name>{e(b['card']['name'])}</div>"
                  f"<div class=rate>{num_part}<span>{unit_part}</span></div><p class=muted style='margin-top:8px'>{e(why(b))}</p>{hint}"
                  f"<p><small><a href='/card/{e(b['card']['id'])}'>About this card ›</a></small></p></div></div>")
+        body += split_hint(b, mine[1:], fcy)
         if len(mine) > 1:
             body += "<h2>Your next best cards here</h2><div class=list>" + "".join(row(x) for x in mine[1:5]) + "</div>"
     else:
         body += "<div class=panel style='margin-top:22px'><a href=/settings>Choose your cards</a> to get an answer from your wallet.</div>"
+    slug = atome_slug(conn, merchant["name"] if merchant else text) if not fcy and not re.fullmatch(r"\d{4}", text) else None
+    if slug:
+        body += atome_panel(conn, person, slug, amt, mine[0] if mine else None, ctx["room"] if ctx else None)
     body += other_types
     for w in boost_warnings(conn, person):
         body += f"<div class=hint style='margin-top:12px'>⚠️ {e(w)}</div>"
@@ -954,15 +1074,16 @@ def lookup(conn, q, person):
                 f"<small style='white-space:normal'>{e(c['bank'])} · {e(why(x))}{extra}</small></span><span class=r>{rate_cell(x)}</span></a>")
 
     miles = [x for x in top if x["card"]["kind"] != "cashback"]
-    miles.sort(key=lambda x: (-x["rate"], not x["held"]))
-    cash = sorted((x for x in top if x["card"]["kind"] == "cashback"), key=lambda x: -x["rate"])
-    where = f"{'this MCC' if not merchant else 'this shop'}, paying by {dict(PAY)[pay]}{' overseas' if fcy else ''}"
+    miles.sort(key=lambda x: (-x["value"], not x["held"]))
+    cash = sorted((x for x in top if x["card"]["kind"] == "cashback"), key=lambda x: -x["value"])
+    where = (f"{'this MCC' if not merchant else 'this shop'}, paying by {dict(PAY)[pay]}{' overseas' if fcy else ''}"
+             + (f", for {money(amt)} (after each of your cards' bonus limit left)" if amt else ""))
     if miles:
         lst = miles if show_all else miles[:12]
         better = sum(1 for x in miles if not x["held"] and x["value"] > best_mine)
         body += (f"<details{' open' if show_all else ''}><summary>Compare every miles card here"
                  f"{' (' + str(better) + ' you do not hold earn more)' if better else ''}</summary>"
-                 f"<p class=muted>Ranked by miles per S$ for {where}. Your excluded banks are left out.</p><div class=list>" +
+                 f"<p class=muted>Ranked by {'miles earned' if amt else 'miles per S$'} for {where}. Your excluded banks are left out.</p><div class=list>" +
                  "".join(top_row(i + 1, x) for i, x in enumerate(lst)) + "</div>")
         if not show_all and len(miles) > 12:
             body += (f"<p style='margin-top:10px'><a href='/?{base_q}{'&m=' + urllib.parse.quote(merchant['slug']) if merchant else ''}"
@@ -980,7 +1101,7 @@ def lookup(conn, q, person):
             body += "<h2>Reported by others</h2><div class=list>" + "".join(
                 f"<div class=row><span class=grow><b>{e(r['card'] or '')}</b><small>{e((r['detail'] or r['outcome'])[:160])}</small></span></div>"
                 for r in rep) + "</div>"
-    body += "<p class=muted style='margin-top:28px'><small>Bonus limits are counted from your own spend this period. Shop types come from public reports and can differ by outlet or payment app.</small></p>"
+    body += "<p class=muted style='margin-top:28px'><small>" + ("Miles for the price are before each bank's own rounding (some count per S$1 or S$5 block). " if amt else "") + "Bonus limits are counted from your own spend this period. Shop types come from public reports and can differ by outlet or payment app.</small></p>"
     return "Which card?", body
 
 
@@ -1046,6 +1167,7 @@ def api_lookup(conn, q, person):
     cur = str(q.get("cur") or "").upper()[:3]
     cur = cur if re.fullmatch(r"[A-Z]{3}", cur) and cur != "SGD" else ""
     fcy = q.get("fcy") in ("1", "true", "yes") or bool(cur)
+    amt = price(q.get("amt") or q.get("amount"))
     merchant, mccs, matches = None, [], []
     if re.fullmatch(r"\d{4}", text):
         mccs = [text]
@@ -1060,7 +1182,7 @@ def api_lookup(conn, q, person):
         pay = "online" if merchant and merchant.get("channel") == "online" else pay_choices(person)[1]
     chosen = q.get("mcc") if q.get("mcc") in mccs else (mccs[0] if mccs else None)
     names = {r["mcc"]: r["name"] for r in conn.execute("SELECT mcc, name FROM mcc_codes WHERE mcc = ANY(%s)", (mccs or [""],)).fetchall()}
-    out = {"query": text, "pay": pay, "fcy": fcy, "currency": cur or None,
+    out = {"query": text, "pay": pay, "fcy": fcy, "currency": cur or None, "amount": amt,
            "shop": ({"name": merchant["name"], "mccs": mccs, "channel": merchant.get("channel"),
                      "source": merchant["source"]} if merchant else None),
            "other_matches": [{"name": m["name"], "mccs": m["mccs"]} for m in matches if not merchant][:8],
@@ -1069,8 +1191,11 @@ def api_lookup(conn, q, person):
     if not merchant and not chosen and matches:
         out["answer"] = "several shops match: ask which one, or retry with the exact name"
         return out
-    p = {"mcc": chosen, "pay": pay, "fcy": fcy, "currency": cur, "merchant": merchant["name"] if merchant else text, "today": datetime.date.today()}
-    ranked = engine.rank(conn, p, set(person["held_cards"]), person["excluded_banks"], person["boost_amounts"])
+    p = {"mcc": chosen, "pay": pay, "fcy": fcy, "currency": cur, "merchant": merchant["name"] if merchant else text, "today": datetime.date.today(),
+         "amount": amt}
+    ctx = wallet_context(conn, person) if amt else None   # a price needs this period's bonus limit left
+    ranked = engine.rank(conn, p, set(person["held_cards"]), person["excluded_banks"], person["boost_amounts"],
+                         ctx["room"] if ctx else None)
 
     def item(x):
         r = x["rule"]
@@ -1081,17 +1206,25 @@ def api_lookup(conn, q, person):
                 "min_spend": float(r["min_spend"]) if r and r["min_spend"] else None,
                 "boosts": x["extra"].get("boosts", []), "checked": bool(r and r["depth"] == "full") or (r is None and x["card"]["depth"] == "full"),
                 "next_boost": ({"hold": x["extra"]["next"][0], "amount": x["extra"]["next"][1], "rate": x["extra"]["next"][2]}
-                               if x["extra"].get("next") else None)}
+                               if x["extra"].get("next") else None),
+                **({"for_price": {"earned": round(x["amt"]["earned"], 2), "at_bonus": x["amt"]["bonus"], "over_limit": x["amt"]["over"],
+                                  "per_sgd": round(x["amt"]["eff"], 2), "unlocks_minimum": bool(x["extra"].get("unlocks"))}}
+                   if x.get("amt") else {})}
 
     mine = [x for x in ranked if x["held"]]
-    miles = sorted((x for x in ranked if x["card"]["kind"] != "cashback" and x["value"] > 0), key=lambda x: -x["rate"])
-    cash = sorted((x for x in ranked if x["card"]["kind"] == "cashback" and x["value"] > 0), key=lambda x: -x["rate"]) \
+    miles = sorted((x for x in ranked if x["card"]["kind"] != "cashback" and x["value"] > 0), key=lambda x: -x["value"])
+    cash = sorted((x for x in ranked if x["card"]["kind"] == "cashback" and x["value"] > 0), key=lambda x: -x["value"]) \
         if person.get("cashback_too") else []
     out["use"] = item(mine[0]) if mine and mine[0]["value"] > 0 else None
     out["then"] = [item(x) for x in mine[1:4]]
     out["top_miles"] = [item(x) for x in miles[:8]]
     out["top_cashback"] = [item(x) for x in cash[:3]]
-    out["assumes"] = "bonus cap still has room; MCCs are public reports and can differ by outlet or payment app"
+    sl = atome_slug(conn, merchant["name"] if merchant else text) if text and not re.fullmatch(r"\d{4}", text) else None
+    out["atome"] = ({"listed": True, "url": f"https://www.atome.sg/paylater-merchants/{sl}", "how": ATOME_TIP} if sl
+                    else {"listed": False})
+    out["assumes"] = (("for_price splits the price at each of your cards' bonus limit left this period (from your real spend; "
+                       "the full limit if none is known), before bank rounding" if amt else "bonus cap still has room")
+                      + "; MCCs are public reports and can differ by outlet or payment app")
     return out
 
 

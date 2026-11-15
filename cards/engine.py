@@ -149,27 +149,61 @@ def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None)
             used_up.append(r.get("label") or r.get("bucket"))
             continue   # this period's cap is used up: the bonus doesn't apply now
         locked = bool(r.get("min_spend")) and not reached(r)
-        cands.append((rate, r, cap, used, left, locked))
+        unlocks = False
+        amt = p.get("amount")
+        needs_shops = shops.get(r.get("bucket"), 0) > 0 or (mins is None and isinstance(r.get("match"), dict)
+                                                            and r["match"].get("min_shops"))
+        if locked and amt and not needs_shops:   # this purchase itself reaches the minimum (what is left, or all of it)
+            need = (mins or {}).get(r.get("bucket"), float(r["min_spend"]))
+            if float(amt) >= float(need):
+                locked, unlocks = False, True
+        cands.append((rate, r, cap, used, left, locked, unlocks))
     # Minimum-spend ladders (S$800 -> 2.8, S$4,000 -> 3.2): a tier already reached beats tiers not reached yet, and
     # with none reached the lowest tier is the one to aim for, not the top of the ladder.
-    if any(r.get("min_spend") and not locked for _, r, _, _, _, locked in cands):
+    if any(c[1].get("min_spend") and not c[5] for c in cands):
         cands = [c for c in cands if not c[5]]
     else:
         low = min((float(c[1]["min_spend"]) for c in cands if c[5]), default=None)
         cands = [c for c in cands if not c[5] or float(c[1]["min_spend"]) == low]
-    for rate, r, cap, used, left, locked in cands:
+    for rate, r, cap, used, left, locked, unlocks in cands:
         if rate > best:
             best, best_rule = rate, r
             extra = {"cap": cap, "boosts": used, "next": next_boost(r, rate, boosts, amounts), "left": left,
                      "locked": locked, "min_left": (mins or {}).get(r.get("bucket")) if locked else None,
                      "shops_left": shops.get(r.get("bucket")) if locked else None,
-                     "min_shops": (r["match"].get("min_shops") or {}).get("count") if isinstance(r.get("match"), dict) else None}
+                     "min_shops": (r["match"].get("min_shops") or {}).get("count") if isinstance(r.get("match"), dict) else None,
+                     "unlocks": unlocks}
     extra["used_up"] = used_up
     if best_rule is None and not used_up:
         extra = {}
+    extra["base"] = base   # what spend above a bonus limit earns here (after any lower rate for this kind of shop)
     note = ("lower rate here: " + (low_rule.get("label") or "this kind of shop")) if best_rule is None and low_rule else \
         "base rate" if best_rule is None else ""
     return best, best_rule, note, extra
+
+
+def for_amount(x, amount, fcy=False):
+    """What one purchase of S$amount earns on a rated card x (from rank): the part that fits the bonus limit left this
+    period earns the bonus rate, the rest the card's base rate. Returns {amount, bonus, over, earned, eff, base}.
+    earned = miles (or S$ cashback for a cashback card); eff = earned per S$ (or %). Before the bank's own rounding."""
+    amount = float(amount)
+    c, r, rate = x["card"], x["rule"], float(x["rate"])
+    base = x["extra"].get("base")
+    if base is None:
+        base = float((c["base_fcy"] if fcy else c["base_sgd"]) or 0)
+    if r is None:   # base rate, a lower rate, or an excluded MCC (rate 0)
+        base, bonus = rate, 0.0
+    else:
+        left = x["extra"].get("left")
+        cap = x["extra"].get("cap", r.get("cap"))
+        room = left if left is not None else (float(cap) if cap else None)
+        bonus = amount if room is None else max(0.0, min(amount, float(room)))
+    over = amount - bonus
+    earned = bonus * rate + over * base
+    if c["kind"] == "cashback":
+        earned /= 100.0
+    eff = (earned * 100.0 if c["kind"] == "cashback" else earned) / amount if amount else 0.0
+    return {"amount": amount, "bonus": bonus, "over": over, "earned": earned, "eff": eff, "base": base}
 
 
 def rank(conn, p, held=(), excluded_banks=(), amounts=None, room=None):
@@ -200,9 +234,15 @@ def rank(conn, p, held=(), excluded_banks=(), amounts=None, room=None):
             from . import fixtures
             extra = dict(extra, match=fixtures.SAY.get(today_is, fixtures.SAY[None]))
         out.append({"card": c, "rate": rate, "rule": rule, "note": note, "held": mine, **{"extra": extra}})
+    amt = float(p.get("amount") or 0)
     for x in out:   # 1% cashback = 1 c per S$ = ~0.67 mpd at the 1.5 c/mile benchmark
         cash = x["card"]["kind"] == "cashback"
-        x["value"] = x["rate"] / 1.5 if cash else x["rate"]
+        if amt > 0:   # with a price: what this purchase earns after the bonus limit left, per S$
+            x["amt"] = for_amount(x, amt, plain.get("fcy"))
+            eff = x["amt"]["eff"]
+        else:
+            eff = x["rate"]
+        x["value"] = eff / 1.5 if cash else eff
         x["unit"] = "%" if cash else " mpd"
     out.sort(key=lambda x: (-x["value"], x["card"]["depth"] != "full", x["card"]["name"]))
     return out

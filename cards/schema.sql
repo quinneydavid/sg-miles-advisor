@@ -420,3 +420,11 @@ CREATE TABLE IF NOT EXISTS match_results (
 );
 -- 0.9.0: when a feeder last sent anything for this person (pages stop showing its numbers when it goes quiet)
 ALTER TABLE people ADD COLUMN IF NOT EXISTS feed_at timestamptz;
+
+-- 0.10.8: shops Atome (buy now, pay in 3) lists in Singapore, from atome.sg's own merchant sitemap (catalogue step
+-- `atome`). Atome charges the card as MCC 5999 online, one third a month, so a big purchase can spread over 3 months
+-- of bonus limits. Rows not seen for 30 days are dropped.
+CREATE TABLE IF NOT EXISTS atome_merchants (
+    slug text PRIMARY KEY,
+    seen date NOT NULL DEFAULT current_date
+);

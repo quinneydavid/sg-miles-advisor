@@ -465,8 +465,28 @@ def run_matches(conn, stats, today):
         stats["match days"] = n
 
 
+ATOME_SITEMAP = "https://www.atome.sg/paylater-merchants/sitemap.xml"
+
+
+def run_atome(conn, stats, today):
+    """Shops Atome lists in Singapore: the slugs in atome.sg's merchant sitemap (Atome's own site, robots allow /)."""
+    _, raw = fetch(ATOME_SITEMAP)
+    slugs = sorted(set(re.findall(r"<loc>https://www\.atome\.sg/paylater-merchants/([a-z0-9][a-z0-9-]*)</loc>",
+                                  raw.decode("utf-8", "replace"))))
+    if len(slugs) < 200:   # a broken or blocked page must not wipe the list
+        raise RuntimeError(f"only {len(slugs)} shops in the Atome sitemap")
+    with conn.cursor() as cur:
+        cur.executemany("INSERT INTO atome_merchants (slug, seen) VALUES (%s, %s) ON CONFLICT (slug) DO UPDATE SET "
+                        "seen = EXCLUDED.seen", [(sl, today) for sl in slugs])
+    gone = conn.execute("DELETE FROM atome_merchants WHERE seen < %s", (today - datetime.timedelta(days=30),)).rowcount
+    note_source(conn, ATOME_SITEMAP, "atome", 200, raw)
+    conn.commit()
+    stats["shops"], stats["dropped"] = len(slugs), gone
+
+
 SOURCES = {"wiki": run_wiki, "milelion": run_milelion, "mainlymiles": run_mainlymiles, "images": run_images, "links": run_links, "tc": run_tc,
-           "awards": run_awards, "seats": run_seats, "matches": run_matches}
+           "awards": run_awards, "seats": run_seats, "matches": run_matches,
+           "atome": run_atome}
 
 
 def run(dry_run=False, only=None):
