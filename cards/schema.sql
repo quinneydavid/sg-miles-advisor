@@ -428,3 +428,15 @@ CREATE TABLE IF NOT EXISTS atome_merchants (
     slug text PRIMARY KEY,
     seen date NOT NULL DEFAULT current_date
 );
+
+-- 0.10.8: Kris+ shops (Singapore Airlines' pay app) and the KrisPay miles per S$ each one gives on top of the card's
+-- own miles, from MainlyMiles' monthly "Latest Kris+ earning merchants" list (catalogue step `kris`). key = the name
+-- without the outlet in brackets, lower case words joined by dashes. A Kris+ payment keeps the shop's own MCC but
+-- reaches the card as an online payment (Apple / Google Pay inside the app). Rows not seen for 60 days are dropped.
+CREATE TABLE IF NOT EXISTS kris_merchants (
+    name text PRIMARY KEY,
+    key  text NOT NULL,
+    mpd  numeric NOT NULL,
+    seen date NOT NULL DEFAULT current_date
+);
+CREATE INDEX IF NOT EXISTS kris_merchants_key ON kris_merchants (key);

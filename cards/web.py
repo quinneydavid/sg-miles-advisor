@@ -835,17 +835,37 @@ ATOME_TIP = ("Atome charges your card as an online purchase under shop type 5999
 ATOME_MIXED = {"uob_preferred_platinum"}
 
 
-def atome_panel(conn, person, slug, amt, direct, room):
-    """Paying with Atome instead: the best card for each third (this month's bonus limit left for the 1st, the full
-    limit for the next two months), against paying it all at once on the best card."""
+def atome_panel(conn, person, slug, amt, direct, room, shop_mcc=None):
+    """Paying with Atome instead. Atome changes the shop type: the card sees MCC 5999 online, not the shop's own MCC,
+    so a shop type a card excludes or doesn't reward can earn the bonus through Atome. Without a price: the best rate
+    through Atome against the best rate direct. With a price: the best card for each third (this month's bonus limit
+    left for the 1st, the full limit for the next two months), against paying it all at once on the best card."""
     link = f"<a href='https://www.atome.sg/paylater-merchants/{e(slug)}' rel=noopener target=_blank>Atome lists this shop</a>"
+    held = set(person["held_cards"])
+    kind = conn.execute("SELECT name FROM mcc_codes WHERE mcc = %s", (shop_mcc or "",)).fetchone() if shop_mcc else None
+    edu = ("<p class=hint>⚠️ Education shops: people report Atome payments to schools and classes not earning the "
+           "bonus even though Atome's shop type is 5999.</p>") if shop_mcc and shop_mcc.startswith("82") else ""
+    swap = ("Through Atome your card sees shop type 5999 (online shopping) instead of "
+            + (f"{shop_mcc} {kind['name']}" if kind else f"shop type {shop_mcc}" if shop_mcc else "this shop's own type") + ".")
     if not amt:
-        return (f"<div class=panel style='margin-top:16px'><p><b>Atome:</b> {link}: pay in 3, no interest. Enter the price "
-                f"to see if splitting it earns more.</p><p class=muted><small>{e(ATOME_TIP)}</small></p></div>")
+        p0 = {"mcc": "5999", "pay": "online", "fcy": False, "currency": "", "merchant": "ATOME", "today": datetime.date.today()}
+        r0 = [x for x in engine.rank(conn, p0, held, person["excluded_banks"], person["boost_amounts"], room)
+              if x["held"] and x["card"]["kind"] != "cashback"]
+        b0 = max(r0, key=lambda x: x["rate"], default=None)
+        d0 = direct["rate"] if direct and direct["card"]["kind"] != "cashback" else None
+        cmp = ""
+        if b0:
+            cmp = f" Best card that way: <b>{e(b0['card']['name'])}, {num(b0['rate'])} miles per S$</b>"
+            if d0 is not None:
+                cmp += f", against {num(d0)} paying direct with {e(direct['card']['name'])}"
+            cmp += "."
+        warn = ("<p class=hint>⚠️ " + e(b0["card"]["name"]) + ": the bank's terms count Atome's shop type, but people "
+                "report Atome payments on this card not always earning the bonus.</p>") if b0 and b0["card"]["id"] in ATOME_MIXED else ""
+        return (f"<div class=panel style='margin-top:16px'><p><b>Atome:</b> {link}: pay in 3, no interest. {e(swap)}{cmp} "
+                f"Enter the price to see the miles for the whole purchase.</p><p class=muted><small>{e(ATOME_TIP)}</small></p>{warn}{edu}</div>")
     third = round(amt / 3, 2)
     p = {"mcc": "5999", "pay": "online", "fcy": False, "currency": "", "merchant": "ATOME", "today": datetime.date.today(),
          "amount": third}
-    held = set(person["held_cards"])
 
     def best(rm):
         r = [x for x in engine.rank(conn, p, held, person["excluded_banks"], person["boost_amounts"], rm) if x["held"]
@@ -858,17 +878,73 @@ def atome_panel(conn, person, slug, amt, direct, room):
     same = now["card"]["id"] == later["card"]["id"]
     on = (f"all three on {e(now['card']['name'])}" if same else
           f"the 1st on {e(now['card']['name'])}, the next two on {e(later['card']['name'])}")
-    d = direct["amt"]["earned"] if direct and direct.get("amt") and direct["card"]["kind"] != "cashback" else 0
+    has_d = bool(direct and direct.get("amt") and direct["card"]["kind"] != "cashback")
+    d = direct["amt"]["earned"] if has_d else 0
     diff = total - d
     verdict = (f"<b>{diff:,.0f} more miles</b> than paying at once" if diff >= 1 else
                f"{-diff:,.0f} fewer miles than paying at once" if diff <= -1 else "the same miles as paying at once")
     mixed = [x["card"]["name"] for x in ((now,) if same else (now, later)) if x["card"]["id"] in ATOME_MIXED]
     warn = (f"<p class=hint>⚠️ {e(' and '.join(mixed))}: the bank's terms count Atome's shop type, but people report "
             "Atome payments on this card not always earning the bonus.</p>") if mixed else ""
-    return (f"<div class=panel style='margin-top:16px'><p><b>Atome:</b> {link}. 3 × {money(third)}, {on}: about "
-            f"{total:,.0f} miles{', ' + verdict + ' on ' + e(direct['card']['name']) if d else ''}.</p>"
+    return (f"<div class=panel style='margin-top:16px'><p><b>Atome:</b> {link}. {e(swap)} 3 × {money(third)}, {on}: about "
+            f"{total:,.0f} miles{', ' + verdict + ' on ' + e(direct['card']['name']) if has_d else ''}.</p>"
             f"<p class=muted><small>Plus Atome+ points (about 0.2 miles per S$). Next months' parts assume those months' "
-            f"bonus limits are free. {e(ATOME_TIP)}</small></p>{warn}</div>")
+            f"bonus limits are free. {e(ATOME_TIP)}</small></p>{warn}{edu}</div>")
+
+
+def kris_hit(conn, name):
+    """Kris+ shops for this shop name: (shown name, best KrisPay miles per S$, how many outlets) or None. Kris+ names
+    carry the outlet in brackets; tried: the whole name, then its first words ('Esso Bukit Timah' -> esso)."""
+    from .catalogue import kris_key
+    words = kris_key(name).split("-")
+    keys = ["-".join(words[:n]) for n in range(len(words), 0, -1) if words[0]]
+    if not keys:
+        return None
+    rows = conn.execute("SELECT name, key, mpd FROM kris_merchants WHERE key = ANY(%s)", (keys,)).fetchall()
+    for k in keys:
+        mine = [r for r in rows if r["key"] == k]
+        if mine:
+            top = max(mine, key=lambda r: float(r["mpd"]))
+            return (re.sub(r"\s*\(.*?\)", "", top["name"]).strip() or top["name"], float(top["mpd"]), len(mine),
+                    min(float(r["mpd"]) for r in mine))
+    return None
+
+
+KRIS_TIP = ("Pay inside the Kris+ app (it uses Apple Pay or Google Pay there). The bank sees an online payment under "
+            "the shop's own type, so a bonus for tapping your phone in a shop does not apply. KrisPay miles move to "
+            "KrisFlyer 1:1 for free within 21 days; after that they are worth less and expire.")
+
+
+def kris_panel(conn, person, hit, amt, p, direct, room):
+    """Paying through Kris+: the card's miles for the same shop type paid online, plus the shop's KrisPay miles."""
+    name, kmpd, n, low = hit
+    held = set(person["held_cards"])
+    q = dict(p, pay="online")
+    r = [x for x in engine.rank(conn, q, held, person["excluded_banks"], person["boost_amounts"], room)
+         if x["held"] and x["card"]["kind"] != "cashback"]
+    b = max(r, key=lambda x: (x["amt"]["earned"] if amt else x["rate"]), default=None)
+    rate_txt = f"{num(kmpd)} KrisPay mile{'' if kmpd == 1 else 's'} per S$" + (f" (outlets give {num(low)} to {num(kmpd)})" if n > 1 and low != kmpd else "")
+    head = f"<b>Kris+:</b> {e(name)} is a Kris+ shop: {rate_txt} on top of your card's miles."
+    if not b:
+        return f"<div class=panel style='margin-top:16px'><p>{head}</p><p class=muted><small>{e(KRIS_TIP)}</small></p></div>"
+    if amt:
+        card_m = b["amt"]["earned"]
+        total = card_m + kmpd * amt
+        d = direct["amt"]["earned"] if direct and direct.get("amt") and direct["card"]["kind"] != "cashback" else None
+        line = (f"Paying {money(amt)} through Kris+ with {e(b['card']['name'])}: about {card_m:,.0f} card miles + "
+                f"{kmpd * amt:,.0f} KrisPay miles = <b>{total:,.0f} miles</b>")
+        if d is not None:
+            diff = total - d
+            line += (f", {diff:,.0f} more than paying direct with {e(direct['card']['name'])}" if diff >= 1 else
+                     f", {-diff:,.0f} fewer than paying direct with {e(direct['card']['name'])}" if diff <= -1 else
+                     ", the same as paying direct")
+    else:
+        line = (f"Best card through Kris+: {e(b['card']['name'])}, {num(b['rate'])} + {num(kmpd)} = "
+                f"<b>{num(b['rate'] + kmpd)} miles per S$</b>")
+        if direct and direct["card"]["kind"] != "cashback":
+            line += f", against {num(direct['rate'])} paying direct with {e(direct['card']['name'])}"
+    return (f"<div class=panel style='margin-top:16px'><p>{head} {line}.</p>"
+            f"<p class=muted><small>{e(KRIS_TIP)} Kris+ rates from MainlyMiles' monthly list.</small></p></div>")
 
 
 def lookup(conn, q, person):
@@ -1024,6 +1100,7 @@ def lookup(conn, q, person):
         return (f"<a class='row wrapt' href='/card/{e(c['id'])}'>{look.face(c, 'sm', ph.get(c['id']))}<span class=grow><b>{e(c['name'])}</b>"
                 f"<small style='white-space:normal'>{e(why(x))}{extra}</small></span><span class=r>{rate_cell(x)}</span></a>")
 
+    direct = mine[0] if mine else None   # the best of the person's cards paying direct (kept for the Atome comparison)
     if mine and mine[0]["value"] == 0:
         body += ("<div class=panel style='margin-top:22px'><p><b>No bonus known here.</b></p><p class=muted>None of your cards "
                  "has a bonus for this shop or MCC, so use the one with the best everyday rate:</p></div>")
@@ -1053,7 +1130,10 @@ def lookup(conn, q, person):
         body += "<div class=panel style='margin-top:22px'><a href=/settings>Choose your cards</a> to get an answer from your wallet.</div>"
     slug = atome_slug(conn, merchant["name"] if merchant else text) if not fcy and not re.fullmatch(r"\d{4}", text) else None
     if slug:
-        body += atome_panel(conn, person, slug, amt, mine[0] if mine else None, ctx["room"] if ctx else None)
+        body += atome_panel(conn, person, slug, amt, direct, ctx["room"] if ctx else None, chosen)
+    hit = kris_hit(conn, merchant["name"] if merchant else text) if not fcy and not re.fullmatch(r"\d{4}", text) else None
+    if hit:
+        body += kris_panel(conn, person, hit, amt, p, direct, ctx["room"] if ctx else None)
     body += other_types
     for w in boost_warnings(conn, person):
         body += f"<div class=hint style='margin-top:12px'>⚠️ {e(w)}</div>"
@@ -1222,6 +1302,9 @@ def api_lookup(conn, q, person):
     sl = atome_slug(conn, merchant["name"] if merchant else text) if text and not re.fullmatch(r"\d{4}", text) else None
     out["atome"] = ({"listed": True, "url": f"https://www.atome.sg/paylater-merchants/{sl}", "how": ATOME_TIP} if sl
                     else {"listed": False})
+    kh = kris_hit(conn, merchant["name"] if merchant else text) if text and not re.fullmatch(r"\d{4}", text) else None
+    out["kris_plus"] = ({"listed": True, "shop": kh[0], "krispay_mpd": kh[1], "krispay_mpd_lowest_outlet": kh[3],
+                         "how": KRIS_TIP} if kh else {"listed": False})
     out["assumes"] = (("for_price splits the price at each of your cards' bonus limit left this period (from your real spend; "
                        "the full limit if none is known), before bank rounding" if amt else "bonus cap still has room")
                       + "; MCCs are public reports and can differ by outlet or payment app")

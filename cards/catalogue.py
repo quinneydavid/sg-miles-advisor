@@ -484,9 +484,54 @@ def run_atome(conn, stats, today):
     stats["shops"], stats["dropped"] = len(slugs), gone
 
 
+KRIS_SEARCH = "https://mainlymiles.com/wp-json/wp/v2/posts?search=latest%20kris%20plus%20earn%20merchants&per_page=5&_fields=link,date"
+
+
+def kris_key(name):
+    """'8 Korean BBQ (The Central)' -> '8-korean-bbq': how Kris+ shop names and shop names are compared."""
+    name = re.sub(r"\(.*?\)", " ", (name or "").lower()).replace("&", " ").replace("'", "").replace("’", "")
+    return "-".join(w for w in re.sub(r"[^a-z0-9]+", " ", name).split() if w not in ("singapore", "sg", "pte", "ltd"))
+
+
+def parse_kris(raw):
+    """MainlyMiles' Kris+ post -> [(name, mpd)]: the biggest two-column 'shop | N mpd' table on the page (the full
+    list; the summary tables are short)."""
+    best = {}
+    for tab in re.findall(r"<table.*?</table>", raw.decode("utf-8", "replace"), re.S):
+        out = {}
+        for row in re.findall(r"<tr[^>]*>(.*?)</tr>", tab, re.S):
+            cells = [html.unescape(re.sub(r"<[^>]+>", "", c)).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)]
+            if len(cells) == 2 and cells[0] and (r := re.fullmatch(r"(\d+(?:\.\d+)?)\s*mpd", cells[1])):
+                out[cells[0][:120]] = float(r.group(1))
+        if len(out) > len(best):
+            best = out
+    return sorted(best.items())
+
+
+def run_kris(conn, stats, today):
+    """Kris+ shops and their KrisPay miles per S$: MainlyMiles' newest monthly list."""
+    _, raw = fetch(KRIS_SEARCH)
+    posts = [x for x in json.loads(raw) if "latest-kris-plus-earn-merchants" in x.get("link", "")]
+    if not posts:
+        raise RuntimeError("no Kris+ merchant post found")
+    url = max(posts, key=lambda x: x["date"])["link"]
+    status, raw = fetch(url)
+    rows = parse_kris(raw)
+    if len(rows) < 200:   # a changed page must not wipe the list
+        raise RuntimeError(f"only {len(rows)} Kris+ shops read from {url}")
+    with conn.cursor() as cur:
+        cur.executemany("INSERT INTO kris_merchants (name, key, mpd, seen) VALUES (%s, %s, %s, %s) ON CONFLICT (name) DO "
+                        "UPDATE SET key = EXCLUDED.key, mpd = EXCLUDED.mpd, seen = EXCLUDED.seen",
+                        [(n, kris_key(n), r, today) for n, r in rows])
+    gone = conn.execute("DELETE FROM kris_merchants WHERE seen < %s", (today - datetime.timedelta(days=60),)).rowcount
+    note_source(conn, url, "blog", status, raw)
+    conn.commit()
+    stats["shops"], stats["dropped"] = len(rows), gone
+
+
 SOURCES = {"wiki": run_wiki, "milelion": run_milelion, "mainlymiles": run_mainlymiles, "images": run_images, "links": run_links, "tc": run_tc,
            "awards": run_awards, "seats": run_seats, "matches": run_matches,
-           "atome": run_atome}
+           "atome": run_atome, "kris": run_kris}
 
 
 def run(dry_run=False, only=None):
