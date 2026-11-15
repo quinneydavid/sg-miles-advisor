@@ -980,8 +980,8 @@ def lookup(conn, q, person):
             f"{'' if text else ' autofocus'}>{hidden}<div class=seg>" +
             "".join(f"<label><input type=radio name=pay value={k} {'checked' if k == pay else ''}><span>{v}</span></label>"
                     for k, v in choices) +
-            f"</div><label class=toggle>Price S$ <input name=amt type=number inputmode=decimal min=0 step=0.01 "
-            f"value='{e(f'{amt:g}' if amt else '')}' placeholder='optional' style='width:9em'></label>"
+            f"</div><label class=price>Price S$ <input name=amt type=text inputmode=decimal autocomplete=off enterkeyhint=go "
+            f"data-go value='{e(f'{amt:,.2f}'.rstrip('0').rstrip('.') if amt else '')}' placeholder='optional'></label>"
             f"<label class=toggle><input type=checkbox name=fcy value=1 {'checked' if fcy else ''}> Overseas / foreign currency</label>" +
             ("<label class=toggle>Charged in <select name=cur><option value=''>another currency</option>" + "".join(
                 f"<option value={k}{' selected' if k == cur else ''}>{v}</option>" for k, v in CURRENCIES) + "</select></label>"
@@ -1047,7 +1047,53 @@ def lookup(conn, q, person):
             return f"{t[:-4]}<small>miles per S$</small>"
         return f"{t[:-1]}%<small>cashback</small>" if t.endswith("%") else t
 
-    def why(x):
+    progmap = {(pe["card"], pe["bucket"]): pe for pe in (ctx or {}).get("progress", [])}
+
+    def stats(cells):
+        return "<div class=stats>" + "".join(f"<div><small>{k}</small><b>{v}</b></div>" for k, v in cells) + "</div>"
+
+    def meters(x, big=False):
+        """Spent and left this period on the bonus this card would use, from the person's own transactions. big = the
+        top pick: the numbers in boxes; otherwise one line each."""
+        r = x["rule"]
+        pe = progmap.get((x["card"]["id"], r["bucket"])) if r and x["held"] else None
+        if not pe:
+            return ""
+        resets = (pe["end"] + datetime.timedelta(days=1)).strftime("%-d %b")
+        per = "statement month" if pe.get("statement") else "month"
+        out = ""
+        if pe["cap"]:
+            used, left, cap = pe["used"], pe["left"], pe["cap"]
+            use = x.get("amt")
+            now = (f" · this purchase uses {money(use['bonus'])} of it" if use and use["bonus"] > 0.005 else "")
+            b_ = bar(100 * used / cap if cap else 0, 'hot' if left < 0.2 * cap else '')
+            if big:
+                out += (f"<p class=sh>Bonus limit this {per}</p>" + stats([("Spent", money(used)), ("Left", money(left)),
+                        ("Limit", money(cap)), ("Resets", resets)]) + b_ +
+                        (f"<p>This purchase uses {money(use['bonus'])} of what's left.</p>" if now else ""))
+            else:
+                out += (f"<p><b>{money(used)}</b> spent · <b>{money(left)}</b> left of the {money(cap)} bonus limit this {per}"
+                        f"{now} · resets {resets}{b_}</p>")
+        if pe["min_spend"]:
+            done = pe["min_spend"] - pe["min_left"]
+            txt = (f"Minimum {money(pe['min_spend'])} reached: <b>{money(pe['card_total'])}</b> spent this {per}"
+                   if pe["min_left"] <= 0 else
+                   f"Minimum {money(pe['min_spend'])}: <b>{money(done)}</b> spent · <b>{money(pe['min_left'])}</b> to go")
+            if pe.get("shops_need") and pe.get("shops_left"):
+                txt += f" · and {pe['shops_left']} more of its shops ({pe['shops_need']} different ones needed)"
+            b_ = bar(100 * done / pe['min_spend'], 'acc')
+            if big:
+                out += (f"<p class=sh>Minimum spend this {per}: {money(pe['min_spend'])}</p>" + stats(
+                    [("Spent", money(pe["card_total"] if pe["min_left"] <= 0 else done)),
+                     ("To go", "reached ✓" if pe["min_left"] <= 0 else money(pe["min_left"]))]) + b_ +
+                        (f"<p>{txt.split(' · and ', 1)[1].capitalize()}.</p>" if " · and " in txt else "") +
+                        ("<p>This purchase reaches it.</p>" if x["extra"].get("unlocks") else ""))
+            else:
+                out += f"<p>{txt}{b_}</p>"
+        return f"<div class=room>{out}</div>" if out else ""
+
+    def why(x, room=False):
+        """room=True: spent / left are shown as bars beside it, so they are left out here."""
         r = x["rule"]
         today_is = x["extra"].get("match")   # a card whose rate depends on today's match says how today stands
         a = x.get("amt")
@@ -1067,13 +1113,15 @@ def lookup(conn, q, person):
         cap = x["extra"].get("cap", r["cap"])
         left = x["extra"].get("left")
         per = "statement month" if r["cap_period"] == "statement" else "month"
-        if left is not None:
+        if room:
+            pass
+        elif left is not None:
             bits.append(f"{money(left)} of its {money(cap)} bonus limit left this {per}")
         elif cap:
             bits.append(f"bonus on the first {money(cap)} a {per}")
         for bl in x["extra"].get("boosts", []):
             bits.append(f"boost: {bl}")
-        if r["min_spend"] and not x["extra"].get("unlocks"):
+        if r["min_spend"] and not x["extra"].get("unlocks") and not room:
             ml = x["extra"].get("min_left")
             if not x["extra"].get("locked"):
                 bits.append(f"{money(r['min_spend'])} minimum reached")
@@ -1097,8 +1145,9 @@ def lookup(conn, q, person):
 
     def row(x, extra=""):
         c = x["card"]
+        m = meters(x)
         return (f"<a class='row wrapt' href='/card/{e(c['id'])}'>{look.face(c, 'sm', ph.get(c['id']))}<span class=grow><b>{e(c['name'])}</b>"
-                f"<small style='white-space:normal'>{e(why(x))}{extra}</small></span><span class=r>{rate_cell(x)}</span></a>")
+                f"<small style='white-space:normal'>{e(why(x, bool(m)))}{extra}</small>{m}</span><span class=r>{rate_cell(x)}</span></a>")
 
     direct = mine[0] if mine else None   # the best of the person's cards paying direct (kept for the Atome comparison)
     if mine and mine[0]["value"] == 0:
@@ -1116,12 +1165,16 @@ def lookup(conn, q, person):
         hint = (f"<div class=hint>💡 With S${nb[1]:,.0f} in {e(nb[0])} this becomes {num(nb[2])} miles per S$. "
                 f"<a href='/card/{e(b['card']['id'])}#boosts'>Set your balance</a></div>") if nb else ""
         if b.get("amt"):   # with a price: what this purchase earns, then the rate after any bonus limit
-            num_part, unit_part = earned(b), f"{earned_unit(b)} on {money(amt)}"
+            num_part, unit_part = earned(b), earned_unit(b)
+            sub = f"on {money(amt)}"
             if b["amt"]["over"] > 0.005 or b["extra"].get("unlocks"):
-                unit_part += f" (works out at {num(b['amt']['eff'])} {'%' if b['card']['kind'] == 'cashback' else 'per S$'})"
+                sub += f" · works out at {num(b['amt']['eff'])} {'%' if b['card']['kind'] == 'cashback' else 'miles per S$'}"
+        else:
+            sub = ""
         body += (f"<div class='pick now'><a href='/card/{e(b['card']['id'])}'>{look.face(b['card'], 'lg', ph.get(b['card']['id']))}</a>"
                  f"<div class=info><div class=label>Use</div><div class=name>{e(b['card']['name'])}</div>"
-                 f"<div class=rate>{num_part}<span>{unit_part}</span></div><p class=muted style='margin-top:8px'>{e(why(b))}</p>{hint}"
+                 f"<div class=rate>{num_part}<span>{unit_part}</span></div>{'<div class=ratesub>' + e(sub) + '</div>' if sub else ''}"
+                 f"<p class=muted style='margin-top:8px'>{e(why(b, bool(meters(b))))}</p>{meters(b, True)}{hint}"
                  f"<p><small><a href='/card/{e(b['card']['id'])}'>About this card ›</a></small></p></div></div>")
         body += split_hint(b, mine[1:], fcy)
         if len(mine) > 1:

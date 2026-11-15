@@ -67,6 +67,8 @@ button.quiet,.btn.quiet{background:var(--chip);color:var(--fg)}button.sm{min-hei
 form.f{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px;align-items:center}
 form.stack{display:flex;flex-direction:column;gap:12px;margin:0 0 18px}
 .search{width:100%;font-size:20px;padding:15px 18px;border-radius:14px}
+.price{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted);min-height:44px}.price input{width:10em;font-size:17px}
+.room{margin-top:10px;font-size:14px;color:var(--fg);white-space:normal}.room p{margin:8px 0 0}.room p:first-child{margin-top:0}.room b{font-variant-numeric:tabular-nums}.ratesub{font-size:15px;color:var(--muted);margin-top:2px}.room .sh{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:14px 0 6px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px}.stats div{background:var(--chip);border-radius:10px;padding:7px 9px}.stats small{display:block;font-size:12px;color:var(--muted)}.stats b{font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}.room .bar{height:8px;margin-top:4px}.row .room{margin-top:6px;font-size:13px}
 .seg{display:flex;background:var(--seg);border-radius:10px;padding:2px;gap:2px}
 .seg label{flex:1;position:relative;text-align:center;font-size:14px;font-weight:500;padding:9px 6px;border-radius:8px;cursor:pointer;color:var(--fg);white-space:nowrap}
 .seg input{position:absolute;opacity:0;pointer-events:none}
@@ -198,7 +200,7 @@ def face(c, size="md", has_photo=False):
     return f"<span class='cf {size}{' photo' if has_photo else ''}' style='{style}' role=img aria-label='{e(c.get('name'))}'>{inner}</span>"
 
 
-JS = """document.addEventListener('change',function(ev){var f=ev.target.form;if(f&&f.dataset.auto!==undefined&&ev.target.type!=='text'&&ev.target.type!=='search'){f.requestSubmit?f.requestSubmit():f.submit();}});
+JS = """document.addEventListener('change',function(ev){var f=ev.target.form;if(f&&f.dataset.auto!==undefined&&(ev.target.dataset.go!==undefined||(ev.target.type!=='text'&&ev.target.type!=='search'))){f.requestSubmit?f.requestSubmit():f.submit();}});
 (function(){var t=document.querySelector('[data-take]');if(!t)return;var n=0;function go(){fetch(t.dataset.take,{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
 if(d.status==='ready'){t.textContent=d.text;t.hidden=false;}else if(d.status==='writing'&&++n<12){setTimeout(go,4000);}}).catch(function(){});}setTimeout(go,2500);})();
 (function(){var chat=document.getElementById('chat');if(!chat)return;var th=document.getElementById('thread'),f=document.getElementById('composer'),ta=f.querySelector('textarea'),

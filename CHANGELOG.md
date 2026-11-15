@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.9
+- Which card? shows what is already spent on each card this period: for the card to use, boxes with Spent, Left, Limit and the day the limit resets, and for a minimum spend, Spent and To go, each with a bar; for the next best cards, the same numbers on one line with a bar. Counted from the person's own transactions.
+- The price box is a plain text box (no up and down arrows); Enter or leaving the box updates the answer. The miles for the price are shown big, with the price and the miles per S$ on a smaller line below.
+
 ## 0.10.8
 - Which card? takes the price (optional). Each card then shows the miles that purchase earns: the part that fits the bonus limit left this period earns the bonus rate, the rest the card's normal rate, and the cards are ranked by miles earned. A purchase that reaches a card's minimum spend by itself counts as reaching it. When the best card's bonus limit runs out part way, a tip says how to split the bill with the next card. The bot API takes `amt` and answers `for_price` per card.
 - Which card? says when Atome lists the shop (new catalogue step `atome` reads the shop list from atome.sg's own sitemap each week). With a price it compares paying in 3 Atome parts (charged as shop type 5999 online, one part a month, the next two in fresh bonus-limit months) with paying at once. The bot API answers `atome`. Atome changes the shop type: the panel says so (5999 online instead of the shop's own type), so a shop type a card excludes, such as schools, can still earn through Atome; without a price it compares the best rate through Atome with the best rate direct. Warnings where people report Atome not earning: UOB Preferred Visa, and education shops.
