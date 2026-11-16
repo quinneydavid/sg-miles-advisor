@@ -2,6 +2,7 @@
 simulator. Personal data is decrypted for the signed-in person only; decrypted lines and results are held in this
 process's memory (cache.py) until that person's lines change, never on disk and never logged."""
 import datetime
+import json
 import re
 import urllib.parse
 from collections import Counter, defaultdict
@@ -236,6 +237,18 @@ def spend_page(conn, q, person):
     return "Spend", body
 
 
+def pay_matters(base, cid):
+    """True when one of the card's rules depends on how a purchase is paid (online, contactless, phone, in a shop)."""
+    return any('"channel"' in json.dumps(r.get("match") or {}) for r in base.rules.get(cid, []))
+
+
+def to_check(base, x):
+    """A purchase whose way of paying was guessed (the person's usual way, or the AI) on a card where it changes the
+    miles, at a shop not known to have stores you walk into: worth a one-tap answer."""
+    return (x.get("paid_src") in ("setting", "ai") and x.get("amount", 0) > 0 and x.get("web") != "store"
+            and bool(pipeline.shop_key(x.get("merchant"))) and pay_matters(base, x.get("card_id")))
+
+
 def lines_page(conn, q, person):
     """Every transaction as a row you can open: the card used, then your better cards and the cards to add."""
     w = h()
@@ -250,6 +263,8 @@ def lines_page(conn, q, person):
     card = lambda cid: base.cards.get(cid, {"id": cid, "name": cid or "?", "bank_id": ""})
     ph = w.photos(conn)
     only = q.get("show") == "missed"
+    checking = q.get("show") == "check"
+    store = replay.in_store(person)
     one = q.get("card") if q.get("card") in base.cards else None   # one card's month, oldest first, with its cap filling up
     span = []
     for k in ("since", "until"):   # with a card: only its purchases in one cap period (Wallet links here)
@@ -274,7 +289,8 @@ def lines_page(conn, q, person):
     rows = []
     for x in sorted(res, key=lambda x: x["date"], reverse=not one):
         gain = x["wallet"] - x["actual"]
-        if (only and gain < 1) or (one and x.get("card_id") != one):
+        check = to_check(base, x)
+        if (only and gain < 1) or (checking and not check) or (one and x.get("card_id") != one):
             continue
         if (since and x["date"] < since) or (until and x["date"] > until):
             continue
@@ -318,6 +334,15 @@ def lines_page(conn, q, person):
                 + "".join(f"<option value={k} {'selected' if how == k and x.get('paid_src') == 'you' else ''}>{t}</option>" for k, t in pipeline.CHANNELS)
                 + "</select></label> <button class='quiet sm'>Remember for this shop</button></form>")
         meta += f" · paid: {e(dict(pipeline.CHANNELS).get(how, 'your usual way'))} ({e(pipeline.PAID_SRC.get(x.get('paid_src'), 'your usual way'))})"
+        quick = ""
+        if check:
+            back = f"/spend/lines?month={cur}" + ("&show=check" if checking else "")
+            guess = "online" if how == "online" else "in store"
+            quick = ("<form method=post action=/spend/paid class=quick onclick='event.stopPropagation()'>"
+                     f"<input type=hidden name=line value='{e(x.get('id'))}'><input type=hidden name=back value='{e(back)}'>"
+                     f"<span class=badge title='How this was paid is a guess ({e(guess)}). One tap saves the answer for this shop.'>Check</span>"
+                     f"<button name=ch value=online class='quiet sm{' on' if how == 'online' else ''}'>Online</button>"
+                     f"<button name=ch value={store} class='quiet sm{' on' if how != 'online' else ''}'>In store</button></form>")
         wa = x.get("wallet_alts") or []
         # the "perfect month" list only when it says something the on-the-day list doesn't
         same = bool(ra) and bool(wa) and ra[0][1] == wa[0][1] and abs(ra[0][0] - wa[0][0]) < 1
@@ -331,14 +356,17 @@ def lines_page(conn, q, person):
                     f"<span class=grow><b>{e(x['merchant'][:40])}</b>"
                     f"<small>{x['date']:%d %b} · {e(card(x['card_id'])['name'])}{' · estimated' if x.get('est') else ''}</small>{better}{capline}</span>"
                     f"<span class='c amt'>{amount}</span><span class='c mi {tone}'>{num(x['actual'], 0)}</span>"
-                    f"<span class='c rt {tone}'>{per(x['actual'], x['amount'])}</span></summary>"
+                    f"<span class='c rt {tone}'>{per(x['actual'], x['amount'])}</span>{quick}</summary>"
                     f"<div class=more>{sums}<p class=muted>{meta}</p>{paid}{over}{real}"
                     f"{ideal}{split}"
                     f"<p><b>Cards to add:</b><br>{alts(add, max(x['wallet'], x['actual']), x['amount']) if add else 'none better than yours'}</p>"
                     f"{'<p><small>' + seemore + '</small></p>' if seemore else ''}</div></details>")
     n_missed = sum(1 for x in res if x["wallet"] - x["actual"] >= 1)
-    filt = (f"<nav class=sub style='margin-top:-6px'><a href='/spend/lines?month={cur}'{'' if only else ' class=on'}>All {len(res)}</a>"
-            f"<a href='/spend/lines?month={cur}&show=missed'{' class=on' if only else ''}>Could have earned more ({n_missed})</a></nav>")
+    n_check = sum(1 for x in res if to_check(base, x))
+    filt = (f"<nav class=sub style='margin-top:-6px'><a href='/spend/lines?month={cur}'{'' if only or checking else ' class=on'}>All {len(res)}</a>"
+            f"<a href='/spend/lines?month={cur}&show=missed'{' class=on' if only else ''}>Could have earned more ({n_missed})</a>"
+            + (f"<a href='/spend/lines?month={cur}&show=check'{' class=on' if checking else ''}>To check ({n_check})</a>" if n_check or checking else "")
+            + "</nav>")
     in_span = lambda x: not (since and x["date"] < since) and not (until and x["date"] > until)
     by = {}
     for x in res:

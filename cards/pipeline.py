@@ -30,7 +30,11 @@ from . import llm
 # text that only an online purchase carries
 ONLINE = re.compile(r"\.COM\b|\bWWW\.|\bHTTPS?\b|\bPAYPAL\s*\*|\bPP\s*\*|\bGOOGLE\s*\*|\bAPPLE\.COM|\bAMZN\b|"
                     r"\bAMAZON\s*(MKTP|MARKETPLACE|PRIME|SG|WEB\s*SERVICES)\b|\bAWS\b|\bOPENAI\b|\bANTHROPIC\b|\bGITHUB\b|\bCLOUDFLARE\b|\bSHOPEE\b|\bLAZADA\b|\bTAOBAO\b|\bALIEXPRESS\b|\bTEMU\b|"
-                    r"\bSTEAM(GAMES|POWERED)?\b|\bNETFLIX\b|\bSPOTIFY\b|\bDISNEY\s*PLUS\b|\bAIRALO\b|\bKLOOK\b", re.I)
+                    r"\bSTEAM(GAMES|POWERED)?\b|\bNETFLIX\b|\bSPOTIFY\b|\bDISNEY\s*PLUS\b|\bAIRALO\b|\bKLOOK\b|"
+                    r"\bGRA?B\s*\*|\bATOME\s*\*", re.I)   # GRB*/GRAB* = paid in the Grab app; ATOME* = Atome pay-later
+# shop types paid where you are: transit fares, taxis, petrol, hotels, restaurants and bars
+ON_THE_SPOT = {"4111", "4121", "5541", "5542", "7011", "5812", "5813"}
+ATOME = re.compile(r"^\s*ATOME\s*\*", re.I)
 # a merchant abroad, from the line's text: a foreign city or a trailing country code ("... HOTEL BANGKOK TH")
 FOREIGN_PLACE = re.compile(
     r"\b(BANGKOK|THAILAND|HUA\s?HIN|PATTAYA|PHUKET|CHIANG\s?MAI|KRABI|SAMUI|KUALA\s?LUMPUR|JOHOR|"
@@ -54,7 +58,9 @@ BANK_CHARGE = re.compile(r"\bFINANCE\s*CHARGE|\bLATE\s*(PAYMENT\s*)?(CHARGE|FEE)
 PAYMENT = re.compile(r"^\s*(PAYMENT\b.*(THANK|RECEIVED)|PYMT\b|GIRO\s*PAYMENT|PAYMT\s*THRU|BILL\s*PAYMENT\b|FAST\s*PAYMENT\b|"
                      r"INTERNET\s*BANKING\s*PAYMENT|AUTO-?PAY\b)", re.I)
 
-FIELDS = ("merchant", "amount", "currency", "fcy", "online", "channel", "channel_src", "mcc", "mcc_src", "est")
+FIELDS = ("merchant", "amount", "currency", "fcy", "online", "channel", "channel_src", "mcc", "mcc_src", "est", "web")
+# "web": what is known about the shop itself when the line does not say how it was paid: "online" (sells only online),
+# "store" (has shops you walk into), "unsure", or None (not looked at). Lines not known to be "store" are worth a check.
 
 # how a purchase was paid. The stored word -> the engine's pay method. 'contactless' = a tap whose device the source does
 # not say: the person's usual way decides between phone and card.
@@ -62,6 +68,7 @@ CHANNELS = [("online", "Online"), ("mobile", "Phone or watch"), ("tap", "Contact
 PAY_OF = {"online": "online", "mobile": "mobile", "tap": "tap", "insert": "insert", "chip": "insert"}
 STATED = set(PAY_OF) | {"contactless"}
 PAID_SRC = {"bank": "the bank's line says so", "you": "your answer for this shop", "text": "an online shop, from its name",
+            "ai": "an online-only shop (AI guess)",
             "setting": "your usual way of paying (Settings)"}
 
 SOURCES = [("wealthfolio", "Wealthfolio"), ("mail", "Mail and statement files"), ("feed", "Feeder")]
@@ -148,7 +155,7 @@ def clean(raw):
     mcc = str(raw["mcc"])[:4] if raw.get("mcc") else None
     return {"merchant": place[:120], "amount": raw.get("amount"), "currency": cur, "fcy": fcy, "online": online,
             "channel": ch, "channel_src": src, "mcc": mcc, "mcc_src": (raw.get("mcc_src") or "source") if mcc else None,
-            "est": bool(raw.get("est"))}
+            "est": bool(raw.get("est")), "web": "online" if online else None}
 
 
 def place(conn, lines, shops=None, model=None):
@@ -164,6 +171,8 @@ def place(conn, lines, shops=None, model=None):
             ln.setdefault("mcc_src", None)
             continue
         m = shops.find(ln["merchant"])
+        if not ln.get("mcc") and ATOME.search(ln["merchant"]):
+            ln["mcc"], ln["mcc_src"] = "5999", "text"   # Atome charges the card as its own online shop type
         if not ln.get("mcc"):
             if m and len(m["mccs"]) == 1:
                 ln["mcc"], ln["mcc_src"] = m["mccs"][0], ("you" if m["source"] == "household" else "shop list")
@@ -174,6 +183,8 @@ def place(conn, lines, shops=None, model=None):
                     cands[ln["merchant"]] = list(m["mccs"])   # shop seen under several MCCs: the model picks one
         if m and ln.get("online") is None and m["channel"] == "online":
             ln["online"], ln["channel"], ln["channel_src"] = True, "online", "text"
+        if m and m["channel"] == "in_person" and not ln.get("web"):
+            ln["web"] = "store"
     ask = bool(llm.key()) if model is None else model
     guesses = llm.guess_mccs(unknown, cands) if unknown and ask else {}
     left = 0
@@ -186,6 +197,19 @@ def place(conn, lines, shops=None, model=None):
         mcc = ln.get("mcc") or ""
         if ln["amount"] > 0 and ln.get("online") is None and (mcc in ("4511", "4722") or "3000" <= mcc <= "3299"):
             ln["online"], ln["channel"], ln["channel_src"] = True, "online", "text"
+    # a shop whose name does not say: the model knows online-only shops (delivery, e-commerce); otherwise the person's
+    # usual way decides, which would count an online order as a tap
+    is_open = lambda ln: ln["amount"] > 0 and ln.get("online") is None and not ln.get("channel") and not ln.get("web")
+    web = llm.guess_online([ln["merchant"] for ln in lines if is_open(ln)]) if ask and any(map(is_open, lines)) else {}
+    for ln in lines:
+        if ln["amount"] > 0 and ln.get("online") is None and not ln.get("channel"):
+            if (ln["mcc"] or "") in ON_THE_SPOT and not ln.get("web"):
+                ln["web"] = "store"
+            v = web.get(ln["merchant"])
+            if v and not ln.get("web"):
+                ln["web"] = v
+            if ln.get("web") == "online":
+                ln["online"], ln["channel"], ln["channel_src"] = True, "online", "ai"
     return left
 
 
@@ -219,7 +243,7 @@ def paid(line, memory):
     if stated == "contactless":
         return None, "bank"
     if line.get("online") or ch == "online":
-        return "online", "text"
+        return "online", ("ai" if src == "ai" else "text")
     return None, "setting"
 
 

@@ -171,9 +171,34 @@ Common Singapore examples: taxis / ComfortDelGro / Grab rides 4121, MRT/bus/Simp
 fast food / cafes 5814, supermarkets (FairPrice, Cold Storage) 5411, online marketplaces (Shopee, Lazada) 5262 or 5399,
 Amazon retail 5999 or 5311, streaming (Netflix, Spotify) 4899, app stores / Apple.com/bill 5818, airlines 3000-3299
 or 4511, hotels 7011, online travel (Agoda, Klook, Expedia) 4722, pharmacies (Watsons, Guardian) 5912, petrol 5541.
+"ATOME* <shop>" is an Atome pay-later purchase: 5999 (never 6011, that is cash).
+"GRB* <shop>" / "GRAB* <shop>" is an order in the Grab app: GrabFood 5814 or 5812, GrabMart 5411, rides 4121.
 Return JSON only: {{"<merchant text>": "4-digit MCC", ...}} with every merchant text (before any " | ") as a key.
 Merchants:
 {names}"""
+
+
+ONLINE_GUESS = """For each Singapore card-statement merchant text below, say how a purchase there is made:
+"online" = the shop sells only online or by delivery (e-commerce, online butchers and grocers, subscriptions, apps,
+pay-later apps like Atome); "store" = it has shops, restaurants or counters you walk into (supermarkets, chains, malls,
+cafes, clinics); "unsure" = you do not know the merchant or it is commonly both.
+Return JSON only: {{"<merchant text>": "online" | "store" | "unsure", ...}} with every merchant text as a key.
+Merchants:
+{names}"""
+
+
+def guess_online(names):
+    """{merchant text: "online" | "store" | "unsure"} from the model; texts it did not answer for are left out."""
+    out = {}
+    names = [n for n in dict.fromkeys(names) if n]
+    for i in range(0, len(names), 60):
+        chunk = names[i:i + 60]
+        try:
+            d = first_json(chat(ONLINE_GUESS.format(names="\n".join(chunk)), max_tokens=2000))
+            out.update({k: v for k, v in (d or {}).items() if k in chunk and v in ("online", "store", "unsure")})
+        except Exception as ex:
+            print(f"online guess failed: {type(ex).__name__}", flush=True)
+    return out
 
 
 def guess_mccs(names, candidates=None):

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.10
+- Online purchases are no longer counted as contactless when the bank's line does not say how they were paid. Grab app orders (GRB*, GRAB*) and Atome payments (ATOME*) read as online from their text, and Atome lines get Atome's own shop type 5999 (the model had guessed 6011, cash). For other shops the configured model says whether the shop sells only online, has shops you walk into, or is not known; fares, taxis, petrol, hotels, restaurants and bars count as paid on the spot, and so do shops the shop list knows as in-person. Only a shop the model calls online-only is counted as online; the line says "an online-only shop (AI guess)".
+- Transactions: a purchase whose way of paying is a guess, on a card where online and contactless earn differently, at a shop not known to have stores, shows a Check badge with one-tap Online and In store buttons on the row. One tap saves the answer for that shop, the same as the "How was this paid?" choice. A To check filter lists only those purchases.
+
 ## 0.10.9
 - Which card? shows what is already spent on each card this period: for the card to use, boxes with Spent, Left, Limit and the day the limit resets, and for a minimum spend, Spent and To go, each with a bar; for the next best cards, the same numbers on one line with a bar. Counted from the person's own transactions.
 - The price box is a plain text box (no up and down arrows); Enter or leaving the box updates the answer. The miles for the price are shown big, with the price and the miles per S$ on a smaller line below.
