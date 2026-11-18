@@ -25,7 +25,7 @@ def main():
         print(f"schema v{db.migrate()}", flush=True)
     if a.cmd == "seed":
         from . import seed
-        with db.connect() as conn:
+        with db.connect() as conn, db.startup_lock(conn):
             seed.seed(conn)
         from . import people
         who = ", ".join(p for p, _ in people.configured())

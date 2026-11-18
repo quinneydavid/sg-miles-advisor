@@ -74,9 +74,32 @@ def _close(conn):
         pass
 
 
+STARTUP_LOCK = 0x5C4A4D53   # advisory lock key: one process at a time migrates and seeds
+
+
+@contextmanager
+def startup_lock(conn):
+    """Hold the start-up lock: with two copies of the app starting at once, the second waits for the first to finish
+    the schema and the seed instead of running the same statements beside it. A session lock, so it survives the
+    commits made inside; it ends with the block (or with the connection)."""
+    conn.execute("SELECT pg_advisory_lock(%s)", (STARTUP_LOCK,))
+    conn.commit()
+    ok = False
+    try:
+        yield conn
+        ok = True
+    finally:
+        try:
+            conn.commit() if ok else conn.rollback()   # what the block did is kept (or dropped) before letting go
+            conn.execute("SELECT pg_advisory_unlock(%s)", (STARTUP_LOCK,))
+            conn.commit()
+        except Exception:
+            _close(conn)   # a closed session gives the lock up too
+
+
 def migrate():
     sql = resources.files("cards").joinpath("schema.sql").read_text()
-    with connect() as conn:
+    with connect() as conn, startup_lock(conn):
         conn.execute(sql)
         conn.commit()
         return conn.execute("SELECT max(version) AS v FROM schema_version").fetchone()["v"]
