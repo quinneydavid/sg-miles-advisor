@@ -1746,7 +1746,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(500, json.dumps({"error": "server error"}), "application/json")
         q = {k: v[-1] for k, v in urllib.parse.parse_qs(u.query).items()}
         try:
-            with db.connect() as conn:
+            with db.connect() as conn, cache.request():
                 p = self.person(conn)
                 if not p:
                     return self.send(403, denied(self.why))

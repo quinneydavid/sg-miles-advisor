@@ -14,7 +14,7 @@ import secrets
 import threading
 import time
 
-from . import crypto
+from . import cache, crypto
 
 # key: (environment variable, default, secret)
 APP = {
@@ -84,8 +84,10 @@ def _aad(scope, key):
 
 def stored(conn, scope=""):
     """{key: {"value": text or None, "secret": bytes or None}} as saved in the app."""
-    rows = conn.execute("SELECT key, value, secret FROM app_settings WHERE scope = %s", (scope,)).fetchall()
-    return {r["key"]: r for r in rows}
+    def read():
+        rows = conn.execute("SELECT key, value, secret FROM app_settings WHERE scope = %s", (scope,)).fetchall()
+        return {r["key"]: r for r in rows}
+    return dict(cache.once(("settings", scope), read))
 
 
 def load(conn, scope=""):
@@ -124,12 +126,14 @@ def put(conn, key, value, scope=""):
         args = (scope, key, value, None)
     conn.execute("INSERT INTO app_settings (scope, key, value, secret) VALUES (%s,%s,%s,%s) ON CONFLICT (scope, key) "
                  "DO UPDATE SET value = EXCLUDED.value, secret = EXCLUDED.secret, updated_at = now()", args)
+    cache.drop(("settings", scope))
     invalidate()
 
 
 def forget(conn, key, scope=""):
     """Back to the starting value (environment or default)."""
     conn.execute("DELETE FROM app_settings WHERE scope = %s AND key = %s", (scope, key))
+    cache.drop(("settings", scope))
     invalidate()
 
 

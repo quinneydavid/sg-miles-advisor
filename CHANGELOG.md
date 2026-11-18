@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.14
+- Pages open faster, most of all with a long purchase history. Checking whether the saved purchases had changed read every stored purchase each time, and a page did that up to six times (Wallet, Pay); it is now done once per page. The saved settings are read once per page too (Settings read them seven times), and a database connection used in the last 30 seconds is no longer tested before each page. Wallet goes from 22 database requests to 10, Pay from 14 to 11, Settings from 28 to 19.
+
 ## 0.10.13
 - One card's purchases (Wallet's "that month" links) are listed newest first, like the full list, instead of oldest first; each purchase still shows how much of the bonus limit was used after it. Purchases on the same day are newest first too.
 
