@@ -1,0 +1,10 @@
+# ShipOps: what this project is. ShipOps reads it; keep it current.
+name: sg-miles-advisor
+runs_on: edge
+code: public
+release:
+  version_file: cards/__init__.py   # "release X.Y.Z" is refused unless this says X.Y.Z
+  registries: [harbor, ghcr]        # lab image built in the lab; ghcr built by .github/workflows/release.yml
+  images:
+    - name: sg-miles-advisor
+      replaces: sg-card-advisor     # the image name the lab deployment uses today (renamed in the next deploy PR)
