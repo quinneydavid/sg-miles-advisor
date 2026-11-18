@@ -265,7 +265,7 @@ def lines_page(conn, q, person):
     only = q.get("show") == "missed"
     checking = q.get("show") == "check"
     store = replay.in_store(person)
-    one = q.get("card") if q.get("card") in base.cards else None   # one card's month, oldest first, with its cap filling up
+    one = q.get("card") if q.get("card") in base.cards else None   # one card's month, newest first, each with its cap use after it
     span = []
     for k in ("since", "until"):   # with a card: only its purchases in one cap period (Wallet links here)
         try:
@@ -287,7 +287,7 @@ def lines_page(conn, q, person):
         return "<br>".join(out)
 
     rows = []
-    for x in sorted(res, key=lambda x: x["date"], reverse=not one):
+    for x in reversed(sorted(res, key=lambda x: x["date"])):   # newest first, same-day purchases too
         gain = x["wallet"] - x["actual"]
         check = to_check(base, x)
         if (only and gain < 1) or (checking and not check) or (one and x.get("card_id") != one):
@@ -408,7 +408,7 @@ def lines_page(conn, q, person):
         filt = (f"<div class=grid><div class=tile><b>{num(t['miles'], 0)}</b><span>miles from {e(c1['name'])}, {when}</span></div>{pts}"
                 f"<div class=tile><b>{money(t['spend'])}</b><span>spent on it · {t['n']} purchase{'' if t['n'] == 1 else 's'}</span></div>"
                 f"<div class=tile><b>{rate}</b><span>miles per S$ on this card</span></div></div>"
-                f"<p class=muted><small>Oldest first, with its bonus limit filling up as you paid. <a href='/card/{e(one)}'>What this card earns ›</a></small></p>")
+                f"<p class=muted><small>Newest first. Each purchase shows how much of the bonus limit was used after it. <a href='/card/{e(one)}'>What this card earns ›</a></small></p>")
         if since:
             form = ""
     filt = cardbar + filt
