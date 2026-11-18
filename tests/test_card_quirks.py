@@ -38,6 +38,22 @@ def test_visa_signature_minimum_counts_own_kind_of_spend():
     assert round(tot["actual"], 2) == round(1000 * 4 + 100 * 0.4, 2)  # local reached it, foreign didn't
 
 
+def test_visa_signature_base_rate_shows_minimum_progress():
+    cid = "uob_visa_signature"
+    w, _, _ = wallet(cid)
+    lines = [line(cid, 1, 300, pay="tap"), line(cid, 2, 15.45, mcc="5411", pay="mobile"),
+             line(cid, 3, 100, fcy=True, pay="tap"), line(cid, 4, 50, pay="online")]
+    res, _, _ = replay.run(w, lines, [cid], [cid])
+    ms = res[1]["min_state"]
+    assert ms["min"] == 1000 and round(ms["spent"], 2) == 315.45 and round(ms["left"], 2) == 684.55   # contactless only
+    assert ms["rate"] == 4.0 and ms["end"] == datetime.date(2026, 10, 31)
+    assert res[2]["min_state"]["spent"] == 100                       # overseas counts toward its own S$1,000
+    assert "min_state" not in res[3]                                 # online never had a bonus to lose
+    lines[0]["amount"] = 1000
+    res, _, _ = replay.run(w, lines, [cid], [cid])
+    assert "min_state" not in res[1]                                 # reached: the bonus is paid
+
+
 def test_manu_selected_categories_earn_less():
     w, card, rules = wallet("maybank_manu")
     _, tot, _ = replay.run(w, [line("maybank_manu", 3, 100, mcc="8011")], ["maybank_manu"], ["maybank_manu"])
@@ -105,3 +121,20 @@ def test_maybank_world_10x_shops():
     assert engine.applies(m["petrol"], {"mcc": "5542", "pay": "tap", "fcy": False})[0]
     rate, rule, _, _ = engine.rate_card(card, rules, set(), shop("IMPERIAL TREASURE SUPER PEKING DUCK"))
     assert rate == 4.0 and rule["bucket"] == "tenx"
+
+
+def test_spend_page_shows_minimum_progress(pg, monkeypatch):
+    from cards import cache, llm, spendweb, statements
+    conn, ids = pg
+    cid = "uob_visa_signature"
+    assert cid in ids
+    conn.execute("UPDATE people SET held_cards = %s WHERE id = 'alice'", ([cid],))
+    monkeypatch.setattr(llm, "guess_mccs", lambda names, cands=None: {})
+    day = datetime.date.today().isoformat()
+    statements.feed(conn, "alice", {"lines": [
+        {"id": "1", "date": day, "card": cid, "merchant": "DON DON DONKI", "amount": 15.45, "channel": "mobile", "mcc": "5411"}]})
+    conn.commit()
+    me = conn.execute("SELECT * FROM people WHERE id = 'alice'").fetchone()
+    _, body = spendweb.lines_page(conn, {}, me)
+    assert "Base rate: the 4 miles per S$" in body and "So far S$15 of S$1,000, S$985 more to go" in body
+    assert "earns 62 miles" in body and "S$985 more for the 4 per S$ bonus" in body

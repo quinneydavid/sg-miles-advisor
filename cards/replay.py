@@ -432,12 +432,49 @@ def run(base, lines, held, allowed, enforce_min=True):
                 changed = True
         if not changed:
             break
+    if enforce_min:
+        min_states(base, out, card_lines["actual"], off["actual"])
     totals = {"spend": sum(ln["amount"] for ln in spend), "actual": sum(x["actual"] for x in out),
               "wallet": sum(x["wallet"] for x in out), "any": sum(x["any"] for x in out)}
     totals["_actual"] = actual           # cap ledger of the real cards (progress panel)
     totals["_card_lines"] = card_lines["actual"]
     totals["_off"] = set(off["actual"])  # bonuses whose minimum spend the real cards missed
     return out, totals, sorted(overflows.values(), key=lambda o: -o["lost"])
+
+
+def min_states(base, out, card_lines, off):
+    """Sets x["min_state"] on each purchase that earned the base rate only because its card's minimum spend for the
+    bonus it would have had wasn't reached in that period (UOB Visa Signature: S$1,000 contactless a statement):
+    {label, rate, min, spent, left, end}. spent = what counts toward that minimum, from the lines on file."""
+    totals = {}
+    for x in out:
+        cid = x.get("card_id")
+        if cid not in base.cards or not x["amount"] or (x.get("mcc") and x["mcc"] in base.excl.get(cid, ())):
+            continue
+        best = None
+        for r in base.rules.get(cid, []):
+            if not r.get("min_spend") or not isinstance(r.get("match"), dict):
+                continue
+            k = base.key(cid, r, x["date"]) or ym(x["date"])
+            if (cid, r["bucket"], k) not in off or not base.counts_for(r, x):
+                continue
+            rate = float(engine.boosted(r, float(r["rate"]), base.boosts.get(cid, []), base.amounts)[0])
+            if rate * x["amount"] <= x["actual"] + 0.5 or (best and rate <= best[0]):
+                continue
+            best = (rate, r, k)
+        if not best:
+            continue
+        rate, r, k = best
+        if cid not in totals:
+            totals[cid] = card_totals(base, cid, card_lines.get(cid, []))
+        spent, need = totals[cid].get((r["bucket"], k), 0.0), float(r["min_spend"])
+        sr, shops_left = shops_rule(r), 0
+        if sr:
+            have = shop_counts(base, cid, card_lines.get(cid, [])).get((r["bucket"], k), ())
+            shops_left = max(0, sr[0] - len(have))
+        x["min_state"] = {"label": r["label"] or r["bucket"], "rate": rate, "min": need, "spent": spent,
+                          "left": max(0.0, need - spent), "shops_left": shops_left,
+                          "end": period_bounds(r, x["date"], base.closes.get(cid))[1]}
 
 
 def progress(base, lines, held, today):
