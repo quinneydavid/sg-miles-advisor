@@ -290,7 +290,7 @@ The sources:
    in what the alert mails missed. The model reads it twice and the two reads must agree on the amounts. Pending rows,
    rows not in S$ and rows older than 120 days are left out. The card comes from the last four digits on the
    screenshot, or from four digits in the file name (`UOB 1234.png`). A row that matches a line already held for that
-   card (same amount, within 3 days) is not added again, whether it came from an alert, a statement or an earlier
+   card (same amount within 3 days, or the same shop within 4% and 5 days, as when a foreign fee posts after the alert) is not added again, whether it came from an alert, a statement or an earlier
    screenshot, and an alert mail for a row a screenshot already added is skipped. The file is moved to `done/` with a
    `.txt` that says what became of each row, or to `failed/` with the reason. The model must be able to read images.
 3. **Feed**: a script of the person's own posts transactions it already has.

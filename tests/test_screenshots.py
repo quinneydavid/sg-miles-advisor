@@ -189,3 +189,57 @@ def test_a_statement_hides_the_screenshot_rows_of_its_card_and_month(alice, monk
     statements.start(conn, "alice", b"%PDF-1", "", None, wait=True)
     shown = statements.load_lines(conn, "alice")
     assert len(shown) == 1 and shown[0]["statement_id"] != "alerts-alice"
+
+
+def test_claim_takes_a_fee_on_top_at_the_same_shop_only():
+    a = D(2026, 11, 10)
+    shop, other = screenshots.words("HOTEL SAKURA TOKYO PTE LTD"), screenshots.words("RAMEN HOUSE TOKYO")
+    assert screenshots.words("Sakura Singapore Pte Ltd") == {"SAKURA"} and "TOKYO" not in shop
+    # the alert said S$200.00, the app shows S$202.00 two days later: the same purchase
+    assert screenshots.claim([(a + datetime.timedelta(days=2), 20200, shop)], [(a, 20000, shop)]) == [0]
+    # small amounts may differ by up to S$2, large ones by 4%
+    assert screenshots.claim([(a, 650, shop)], [(a, 450, shop)]) == [0]
+    assert screenshots.claim([(a, 105000, shop)], [(a, 100000, shop)]) == [None]
+    # another shop, the other side, or too far apart: not the same
+    assert screenshots.claim([(a, 20200, other)], [(a, 20000, shop)]) == [None]   # both in Tokyo, still two shops
+    assert screenshots.claim([(a, -20200, shop)], [(a, -20000, shop)]) == [0]
+    assert screenshots.claim([(a, -20200, shop)], [(a, 20000, shop)]) == [None]
+    assert screenshots.claim([(a + datetime.timedelta(days=6), 20200, shop)], [(a, 20000, shop)]) == [None]
+    # an exact amount wins over a near one
+    assert screenshots.claim([(a, 20200, shop)], [(a, 20000, shop), (a, 20200, other)]) == [1]
+
+
+def test_an_alert_before_the_fee_takes_the_posted_amount(alice):
+    conn, ids, model, folder = alice
+    ingest.store_alerts(conn, "alice", [{"date": DAY - datetime.timedelta(days=3), "card": ids[0], "merchant": "HOTEL SAKURA TOKYO",
+                                         "amount": 200.0, "currency": "SGD", "fcy": False, "online": None, "est": False, "mid": "m1"}])
+    model.last4, model.rows = "1111", [row(1, "HOTEL SAKURA TOKYO JP", 202.0)]
+    drop(folder)
+    stats = run(conn)
+    assert stats["screenshot rows added"] == 0 and stats["screenshot amounts corrected"] == 1
+    assert [x["amount"] for x in lines(conn, ids[0])] == [202.0]
+    assert "the alert said 200.00" in receipt(folder, "done")
+
+
+def test_an_alert_before_the_fee_after_the_screenshot_is_left_out(alice):
+    conn, ids, model, folder = alice
+    model.last4, model.rows = "1111", [row(1, "HOTEL SAKURA TOKYO JP", 202.0)]
+    drop(folder)
+    run(conn)
+    alert = {"date": DAY - datetime.timedelta(days=3), "card": ids[0], "merchant": "HOTEL SAKURA", "amount": 200.0,
+             "currency": "SGD", "fcy": False, "online": None, "est": False, "mid": "a"}
+    assert screenshots.drop_seen_alerts(conn, "alice", [alert])[1] == 1
+    assert screenshots.drop_seen_alerts(conn, "alice", [dict(alert, merchant="RAMEN HOUSE")])[1] == 0
+
+
+def test_rows_above_the_first_date_heading_are_skipped(alice):
+    conn, ids, model, folder = alice
+    model.last4, model.rows = "1111", [{"date": None, "description": "CUT OFF ROW", "amount": 9.0, "currency": "SGD",
+                                        "pending": False}, row(1, "KOPI CORNER", 4.5)]
+    drop(folder)
+    stats = run(conn)
+    assert stats["screenshot rows added"] == 1 and "no date" in receipt(folder, "done")
+
+
+def test_the_prompt_says_a_heading_dates_the_rows_below_it():
+    assert "rows below it" in screenshots.READ and '"date": null' in screenshots.READ
