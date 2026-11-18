@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.13
+- One card's purchases (Wallet's "that month" links) are listed newest first, like the full list, instead of oldest first; each purchase still shows how much of the bonus limit was used after it. Purchases on the same day are newest first too.
+
 ## 0.10.12
 - `/healthz` answers `ok <version>` (e.g. `ok 0.10.12`) instead of `ok`, so a check can tell which version is running.
 
