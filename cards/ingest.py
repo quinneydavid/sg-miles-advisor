@@ -4,8 +4,9 @@
          days: a Gmail label (e.g. "Cards", every mail in it counts) or INBOX (then only bank senders). Transaction ALERT mails -> the model extracts date / merchant / amount / currency /
          last4 -> a live line on the card with that last4 (Settings). Statement PDF attachments -> the upload pipeline
          (with the person's stored PDF passwords, duplicate guard included).
-  files  a drop folder per person (<CARDS_INBOX_DIR>/<person>/): new PDFs go through the same pipeline and are
-         moved to done/ or failed/ (with a .txt saying why).
+  files  a drop folder per person (<CARDS_INBOX_DIR>/<person>/): new PDFs go through the same pipeline; screenshots
+         of the bank's app (PNG, JPEG, WebP) are read by the model and only their new rows are added (screenshots.py).
+         Each file is moved to done/ or failed/, with a .txt saying why or what became of each row.
 
 The mailbox is set by each person on the Settings page (config.py; the password is stored encrypted), with a
 "Test connection" button (test_mailbox). A person who connected Wealthfolio and switched its import on gets that
@@ -21,7 +22,7 @@ import os
 import re
 import shutil
 
-from . import config, crypto, db, llm, pipeline, statements
+from . import config, crypto, db, llm, pipeline, screenshots, statements
 
 # bank id -> the mail domains its alerts and e-statements come from (subdomains count). One list for reading mail
 # (BANK_SENDERS) and for the mailbox rules the Settings page hands out (mailhelp.py).
@@ -110,8 +111,9 @@ def alert_line(conn, person, st, msg):
             "currency": cur, "fcy": fcy, "online": d.get("online"), "est": fcy and not d.get("sgd_amount")}
 
 
-def store_alerts(conn, person, lines):
-    """Alert lines go under statement alerts-<person> (a statement for the same card + month hides them: load_lines)."""
+def store_alerts(conn, person, lines, section="alert"):
+    """Alert lines go under statement alerts-<person> (a statement for the same card + month hides them: load_lines).
+    Screenshot rows go there too, with section "screenshot" and their own id ("lid")."""
     if not lines:
         return 0
     sid = f"alerts-{person}"
@@ -122,11 +124,11 @@ def store_alerts(conn, person, lines):
     cleaned, _ = pipeline.run(conn, raws, model=True)
     n = 0
     for ln in cleaned:
-        lid = crypto.hmac_hex(conn, "alert", f"{person}|{ln['card']}|{ln['date']}|{ln['amount']:.2f}|{ln['text'].upper()}|{ln['mid']}".encode())[:32]
+        lid = ln.get("lid") or crypto.hmac_hex(conn, "alert", f"{person}|{ln['card']}|{ln['date']}|{ln['amount']:.2f}|{ln['text'].upper()}|{ln['mid']}".encode())[:32]
         data = {k: ln.get(k) for k in pipeline.FIELDS}
         conn.execute("INSERT INTO stmt_lines (id, statement_id, person, card_id, section, txn_date, data_enc) VALUES "
-                     "(%s,%s,%s,%s,'alert',%s,%s) ON CONFLICT (id) DO NOTHING",
-                     (lid, sid, person, ln["card"], ln["date"], crypto.enc_json(conn, data, f"stmt_lines.data_enc:{lid}")))
+                     "(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",
+                     (lid, sid, person, ln["card"], section, ln["date"], crypto.enc_json(conn, data, f"stmt_lines.data_enc:{lid}")))
         n += 1
     c = conn.execute("SELECT count(*) n, min(txn_date) a, max(txn_date) b FROM stmt_lines WHERE statement_id = %s", (sid,)).fetchone()
     conn.execute("UPDATE statements SET n_lines = %s, period_from = %s, period_to = %s WHERE id = %s", (c["n"], c["a"], c["b"], sid))
@@ -183,6 +185,9 @@ def run_mail(conn, person, stats):
             else:
                 stats["mail not an alert" if not ln else "alert without a known card"] += 1
                 mark(conn, person, "mail", h, "skipped" if not ln else "failed")
+        alerts, known = screenshots.drop_seen_alerts(conn, person, alerts)
+        if known:
+            stats["alerts a screenshot already added"] += known
         stats["alerts"] += store_alerts(conn, person, alerts)
     finally:
         try:
@@ -285,21 +290,48 @@ def run_files(conn, person, stats):
         os.makedirs(os.path.join(root, sub), exist_ok=True)
     for name in sorted(os.listdir(root)):
         path = os.path.join(root, name)
-        if not os.path.isfile(path) or not name.lower().endswith(".pdf"):
+        low = name.lower()
+        if not os.path.isfile(path) or name.startswith(".") or not low.endswith((".pdf",) + screenshots.IMAGES + screenshots.HEIC):
             continue
-        with open(path, "rb") as f:
-            data = f.read()
-        res = statement_file(conn, person, st, data)
-        stats[res] += 1
-        ok = res in ("statement read", "duplicate file")
+        if low.endswith(".pdf"):
+            with open(path, "rb") as f:
+                data = f.read()
+            res = statement_file(conn, person, st, data)
+            stats[res] += 1
+            ok = res in ("statement read", "duplicate file")
+            why = None if ok else {"pdf password unknown": "The PDF is password-protected and none of your saved passwords opened it. Add it in "
+                                                           "Settings in the app, then move the file back here.",
+                                   "not a pdf": "This isn't a PDF file."}.get(res, "It couldn't be read. Try uploading it on the Statements page.")
+        else:
+            ok, why = screenshot_file(conn, person, st, path, stats)
         dest = os.path.join(root, "done" if ok else "failed", name)
         shutil.move(path, dest)
-        if not ok:
-            why = {"pdf password unknown": "The PDF is password-protected and none of your saved passwords opened it. Add it in "
-                                           "Settings in the app, then move the file back here.",
-                   "not a pdf": "This isn't a PDF file."}.get(res, "It couldn't be read. Try uploading it on the Statements page.")
+        if why:
             with open(dest + ".txt", "w") as f:
                 f.write(why + "\n")
+
+
+def screenshot_file(conn, person, st, path, stats):
+    """One screenshot from the drop folder (screenshots.py). -> (read, the text of the .txt beside it)."""
+    if path.lower().endswith(screenshots.HEIC):
+        stats["screenshot failed"] += 1
+        return False, ("This is a HEIC picture, which can't be read here. On the phone, save or share the screenshot as "
+                       "PNG or JPEG (on an iPhone: Settings, Camera, Formats, Most Compatible) and drop it here again.")
+    # the day it was taken (the file's time here) settles "Today", "Yesterday" and dates without a year
+    day = datetime.datetime.fromtimestamp(os.path.getmtime(path)).date()
+    with open(path, "rb") as f:
+        data = f.read()
+    try:
+        counts, notes = screenshots.take(conn, person, st, data, os.path.basename(path), day)
+    except screenshots.Refused as ex:
+        conn.rollback()
+        stats["screenshot failed"] += 1
+        return False, str(ex)
+    stats["screenshot read"] += 1
+    stats.update({k: v for k, v in counts.items() if v})
+    head = (f"Read on {datetime.date.today().isoformat()}: {counts['screenshot rows added']} added, "
+            f"{counts['screenshot rows already there']} already there, {counts['screenshot rows skipped']} skipped.")
+    return True, "\n".join([head, ""] + notes)
 
 
 def note_run(conn, person, counts):
