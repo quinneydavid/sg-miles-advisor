@@ -1716,7 +1716,7 @@ class Handler(BaseHTTPRequestHandler):
         u = urllib.parse.urlsplit(self.path)
         public = getattr(self.server, "public", False)
         if u.path == "/healthz":
-            return self.send(200, "ok", "text/plain")
+            return self.send(200, f"ok {__version__}", "text/plain")
         if not public and not access.host_ok(self.headers):
             return self.refuse_host()
         if u.path == "/app.css":

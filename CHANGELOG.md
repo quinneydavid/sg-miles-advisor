@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.12
+- `/healthz` answers `ok <version>` (e.g. `ok 0.10.12`) instead of `ok`, so a check can tell which version is running.
+
 ## 0.10.11
 - Transactions: a purchase that earned the card's normal rate only because the card's minimum spend for its bonus wasn't reached in that period now says so, with the progress: "Base rate: the 4 miles per S$ Contactless + petrol + SimplyGo bonus needs S$1,000 of that spend on this card by 30 Nov. So far S$315 of S$1,000, S$685 more to go. Reach it and this purchase earns 62 miles", and a bar. The row in the list shows "S$685 more for the 4 per S$ bonus". The amount counts only the spend that counts toward that minimum (for UOB Visa Signature, its own kind of spend). Once the period has closed it says the bonus was not earned. A minimum that also needs purchases at named shops (DBS yuu) says how many shops are still to go.
 

@@ -49,6 +49,9 @@ def test_a_rebound_name_is_refused_and_healthz_stays_open(door, monkeypatch):
     assert ask(door, "/app.css", "evil.example:8080") == 421 and ask(door, "/", "evil.example") == 421
     assert ask(door, "/settings", "evil.example", data=b"x=1") == 421
     assert ask(door, "/healthz", "evil.example") == 200 and ask(door, "/healthz", "app:8080") == 200
+    from cards import __version__
+    import urllib.request
+    assert urllib.request.urlopen(f"http://127.0.0.1:{door.server_address[1]}/healthz", timeout=10).read().decode() == f"ok {__version__}"
     monkeypatch.setenv("CARDS_HOSTS", "cards.example")
     assert ask(door, "/app.css", "cards.example") == 200 and ask(door, "/app.css", "evil.example") == 421
     monkeypatch.delenv("CARDS_SINGLE_USER")                                 # behind a signing-in proxy: any name
