@@ -352,6 +352,21 @@ def lines_page(conn, q, person):
         tone = "ok" if rate >= 3 else ("warn" if rate < 1 else "")
         sums = (f"<p><b>{amount} × {per(x['actual'], x['amount'])} miles per S$ = {num(x['actual'], 0)} miles</b> on "
                 f"{e(card(x['card_id'])['name'])}.</p>")
+        ms = x.get("min_state")
+        if ms:
+            pct = min(100, round(100 * ms["spent"] / ms["min"])) if ms["min"] else 0
+            todo = ([f"{money(ms['left'])} more"] if ms["left"] >= 1 else []) + \
+                   ([f"{ms['shops_left']} more of the named shops"] if ms.get("shops_left") else [])
+            closed = ms["end"] < datetime.date.today()
+            sums += (f"<p class=warn><b>Base rate: the {per(ms['rate'], 1)} miles per S$ {e(ms['label'])} bonus needs "
+                     f"{money(ms['min'])} of that spend on this card by {ms['end']:%d %b}.</b> "
+                     f"So far {money(ms['spent'])} of {money(ms['min'])}"
+                     + (f", {' and '.join(todo)} to go" if todo else "")
+                     + (" (period closed: bonus not earned)." if closed else
+                        f". Reach it and this purchase earns {num(ms['rate'] * x['amount'], 0)} miles.")
+                     + f"<span class=bar style='display:block'><i class=hot style='width:{pct}%'></i></span></p>")
+            if not closed and todo:
+                better += f"<small class=warn>{e(todo[0])} for the {per(ms['rate'], 1)} per S$ bonus</small>"
         rows.append(f"<details class=tx><summary>{look.face(card(x['card_id']), 'sm', ph.get(x['card_id']))}"
                     f"<span class=grow><b>{e(x['merchant'][:40])}</b>"
                     f"<small>{x['date']:%d %b} · {e(card(x['card_id'])['name'])}{' · estimated' if x.get('est') else ''}</small>{better}{capline}</span>"

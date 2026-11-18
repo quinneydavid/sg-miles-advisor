@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.11
+- Transactions: a purchase that earned the card's normal rate only because the card's minimum spend for its bonus wasn't reached in that period now says so, with the progress: "Base rate: the 4 miles per S$ Contactless + petrol + SimplyGo bonus needs S$1,000 of that spend on this card by 30 Nov. So far S$315 of S$1,000, S$685 more to go. Reach it and this purchase earns 62 miles", and a bar. The row in the list shows "S$685 more for the 4 per S$ bonus". The amount counts only the spend that counts toward that minimum (for UOB Visa Signature, its own kind of spend). Once the period has closed it says the bonus was not earned. A minimum that also needs purchases at named shops (DBS yuu) says how many shops are still to go.
+
 ## 0.10.10
 - Online purchases are no longer counted as contactless when the bank's line does not say how they were paid. Grab app orders (GRB*, GRAB*) and Atome payments (ATOME*) read as online from their text, and Atome lines get Atome's own shop type 5999 (the model had guessed 6011, cash). For other shops the configured model says whether the shop sells only online, has shops you walk into, or is not known; fares, taxis, petrol, hotels, restaurants and bars count as paid on the spot, and so do shops the shop list knows as in-person. Only a shop the model calls online-only is counted as online; the line says "an online-only shop (AI guess)".
 - Transactions: a purchase whose way of paying is a guess, on a card where online and contactless earn differently, at a shop not known to have stores, shows a Check badge with one-tap Online and In store buttons on the row. One tap saves the answer for that shop, the same as the "How was this paid?" choice. A To check filter lists only those purchases.
