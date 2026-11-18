@@ -2,6 +2,7 @@
 off, dict rows. `with connect() as conn` commits on a clean exit and rolls back on an error, like psycopg's own."""
 import os
 import queue
+import time
 from contextlib import contextmanager
 from importlib import resources
 
@@ -9,7 +10,8 @@ import psycopg
 from psycopg.rows import dict_row
 
 POOL_SIZE = int(os.environ.get("PGPOOL", "6"))
-_pool = queue.LifoQueue()
+FRESH = 30   # seconds: a connection back in the pool for less than this is used without the SELECT 1 check
+_pool = queue.LifoQueue()   # (connection, when it was put back)
 
 
 def dsn():
@@ -39,11 +41,13 @@ def connect():
     conn = None
     while conn is None:
         try:
-            c = _pool.get_nowait()
+            c, back = _pool.get_nowait()
         except queue.Empty:
             conn = _open()
             break
-        if not c.closed and _alive(c):
+        # clicking through the pages reuses a connection every few seconds: checking it each time cost a round trip
+        # per page. One that sat longer may have died with a database restart or failover, so that one is checked.
+        if not c.closed and (time.monotonic() - back < FRESH or _alive(c)):
             conn = c
         else:
             _close(c)
@@ -60,7 +64,7 @@ def connect():
         if conn.closed or conn.broken or _pool.qsize() >= POOL_SIZE:
             _close(conn)
         else:
-            _pool.put(conn)
+            _pool.put((conn, time.monotonic()))
 
 
 def _close(conn):

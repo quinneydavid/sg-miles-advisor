@@ -43,7 +43,7 @@ def pg(_pgserver, monkeypatch):
     crypto._keys.clear()
     crypto._raw.clear()
     while not db._pool.empty():
-        db._close(db._pool.get_nowait())
+        db._close(db._pool.get_nowait()[0])
     cache._cat.update(stamp=None, at=0.0, data=None)
     cache._lines.clear()
     cache._memo.clear()
@@ -55,6 +55,6 @@ def pg(_pgserver, monkeypatch):
         conn.commit()
         yield conn, ids
     while not db._pool.empty():
-        db._close(db._pool.get_nowait())
+        db._close(db._pool.get_nowait()[0])
     crypto._keys.clear()
     crypto._raw.clear()

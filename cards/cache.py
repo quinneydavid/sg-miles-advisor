@@ -11,12 +11,14 @@ import json
 import threading
 import time
 from collections import defaultdict
+from contextlib import contextmanager
 
 _lock = threading.Lock()
 _cat = {"stamp": None, "at": 0.0, "data": None}
 _lines = {}     # person -> (stamp, spend lines, annual-fee lines)
 _memo = {}      # person -> (stamp, {key: value})
 _img = {}       # (card id, size) -> (version, mime, bytes)
+_req = threading.local()   # what one page view has read already: see request()
 
 
 def _stamp(conn):
@@ -110,7 +112,40 @@ def catalogue(conn):
     return data
 
 
+@contextmanager
+def request():
+    """While a page is drawn, a few small reads are made once instead of by every helper that needs them: the person's
+    line stamp (a page made up to six, each a pass over all the person's stored lines) and the saved settings. Only for
+    reading pages: a form post writes."""
+    _req.held = {}
+    try:
+        yield
+    finally:
+        _req.held = None
+
+
+def once(key, fn):
+    """fn() once per page view (see request()); outside one, every time."""
+    held = getattr(_req, "held", None)
+    if held is None:
+        return fn()
+    if key not in held:
+        held[key] = fn()
+    return held[key]
+
+
+def drop(key):
+    """Forget a value once() holds, after writing what it was read from."""
+    held = getattr(_req, "held", None)
+    if held:
+        held.pop(key, None)
+
+
 def _line_stamp(conn, person):
+    return once(("lines", person), lambda: _read_line_stamp(conn, person))
+
+
+def _read_line_stamp(conn, person):
     # the stored bytes are part of the stamp: a line corrected in place (a feeder or Wealthfolio re-sent it) is seen
     r = conn.execute("SELECT count(*) n, md5(coalesce(string_agg(id || coalesce(card_id, '') || md5(data_enc), '' ORDER BY id), '')) h "
                      "FROM stmt_lines WHERE person = %s", (person,)).fetchone()
