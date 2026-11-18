@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.16
+- Screenshots: an alert can show the amount before a foreign transaction fee, while the bank's app shows the posted amount, about 1% more. A screenshot row now also matches a held line at the same shop (sharing a word of its name, not counting place names and company endings) on the same side, within 5 days and 4% (at least S$2). An alert matched that way takes the posted amount, and the `.txt` says what the alert said. An alert that arrives after such a screenshot row is skipped. An exact amount is still preferred.
+- Screenshots: a date heading applies to the rows below it. Rows above the first visible heading (a screenshot cut off at the top) get no date and are skipped, instead of taking the date of a heading that belongs to them.
+
 ## 0.10.15
 - Screenshots of a card's transaction list in the bank's app can be dropped in the person's drop folder (PNG, JPEG or WebP), for purchases the alert mails missed. The model reads each screenshot twice, once for the rows and once for the amounts alone. When the two disagree nothing is added and the file goes to `failed/` with a note. Pending rows, rows not in S$, rows dated after the screenshot and rows more than 120 days old are left out. "Today", "Yesterday" and dates without a year are worked out from the day the screenshot was saved.
 - No double counting: each row is matched against the lines already held for that card (alerts, statements, earlier screenshots): the same amount on the same side within 3 days, closest date first, each held line used once. Two equal purchases on one day stay two, and an overlapping screenshot adds only its new rows. An alert mail that arrives later for a row a screenshot already added is skipped. A statement for the card and month hides screenshot rows the way it hides alerts.
