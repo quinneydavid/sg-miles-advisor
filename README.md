@@ -286,6 +286,13 @@ The sources:
 2. **Mail and statement files**: for everyone else. `cards ingest` reads the mailbox the person connected (see
    [Setting up mail](#setting-up-mail)) and a drop folder `<CARDS_INBOX_DIR>/<person id>/`; a statement PDF can also be
    uploaded on `/statements`. Bank alert mails become transactions at once; the statement confirms them. Needs a model.
+   A screenshot of the card's transaction list in the bank's app (PNG, JPEG or WebP) dropped in the same folder fills
+   in what the alert mails missed. The model reads it twice and the two reads must agree on the amounts. Pending rows,
+   rows not in S$ and rows older than 120 days are left out. The card comes from the last four digits on the
+   screenshot, or from four digits in the file name (`UOB 1234.png`). A row that matches a line already held for that
+   card (same amount, within 3 days) is not added again, whether it came from an alert, a statement or an earlier
+   screenshot, and an alert mail for a row a screenshot already added is skipped. The file is moved to `done/` with a
+   `.txt` that says what became of each row, or to `failed/` with the reason. The model must be able to read images.
 3. **Feed**: a script of the person's own posts transactions it already has.
 
 Someone who uses only mail and statement files has nothing to choose. With more than one source in play, Settings shows

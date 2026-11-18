@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.15
+- Screenshots of a card's transaction list in the bank's app can be dropped in the person's drop folder (PNG, JPEG or WebP), for purchases the alert mails missed. The model reads each screenshot twice, once for the rows and once for the amounts alone. When the two disagree nothing is added and the file goes to `failed/` with a note. Pending rows, rows not in S$, rows dated after the screenshot and rows more than 120 days old are left out. "Today", "Yesterday" and dates without a year are worked out from the day the screenshot was saved.
+- No double counting: each row is matched against the lines already held for that card (alerts, statements, earlier screenshots): the same amount on the same side within 3 days, closest date first, each held line used once. Two equal purchases on one day stay two, and an overlapping screenshot adds only its new rows. An alert mail that arrives later for a row a screenshot already added is skipped. A statement for the card and month hides screenshot rows the way it hides alerts.
+- The card comes from the last four digits on the screenshot, else from four digits in the file name (for example `UOB 1234.png`). The file is moved to `done/` with a `.txt` saying, for each row, whether it was added, already there or skipped. A HEIC picture goes to `failed/` with a note to save it as PNG or JPEG.
+
 ## 0.10.14
 - Pages open faster, most of all with a long purchase history. Checking whether the saved purchases had changed read every stored purchase each time, and a page did that up to six times (Wallet, Pay); it is now done once per page. The saved settings are read once per page too (Settings read them seven times), and a database connection used in the last 30 seconds is no longer tested before each page. Wallet goes from 22 database requests to 10, Pay from 14 to 11, Settings from 28 to 19.
 
