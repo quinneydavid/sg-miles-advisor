@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.17
+- Two copies of the app can run side by side (for example two replicas, so a lost node is not an outage). The schema update and the catalogue seed that run at every start now hold a database lock, so a second copy starting at the same time waits for the first instead of running the same statements beside it. Nothing else is held per copy that another copy could miss: the caches check the database, and uploaded statements keep their progress there. App-wide settings changed through one copy reach the other within 30 seconds.
+
 ## 0.10.16
 - Screenshots: an alert can show the amount before a foreign transaction fee, while the bank's app shows the posted amount, about 1% more. A screenshot row now also matches a held line at the same shop (sharing a word of its name, not counting place names and company endings) on the same side, within 5 days and 4% (at least S$2). An alert matched that way takes the posted amount, and the `.txt` says what the alert said. An alert that arrives after such a screenshot row is skipped. An exact amount is still preferred.
 - Screenshots: a date heading applies to the rows below it. Rows above the first visible heading (a screenshot cut off at the top) get no date and are skipped, instead of taking the date of a heading that belongs to them.
