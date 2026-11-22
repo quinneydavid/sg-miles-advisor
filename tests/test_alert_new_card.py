@@ -57,9 +57,8 @@ def test_an_alert_before_the_card_was_added_counts_once_its_digits_are_saved(pg,
     st = ingest.settings(conn, "alice")
     st["last4"] = {"4321": ids[0]}
     ingest.save_settings(conn, "alice", st)
-    assert ingest.retry_alerts_without_card(conn, "alice") == 1
     conn.commit()
-    ingest.run_mail(conn, "alice", stats)
+    ingest.run_mail(conn, "alice", stats)   # the new digits are seen by the next mail check
     assert [r["card_id"] for r in lines(conn)] == [ids[0]]
 
     ingest.run_mail(conn, "alice", stats)   # and only once

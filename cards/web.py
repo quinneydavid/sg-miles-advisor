@@ -2010,8 +2010,6 @@ class Handler(BaseHTTPRequestHandler):
                         if k.startswith("l4_") and k[3:] in held:
                             for d in re.findall(r"\b\d{4}\b", v[0]):
                                 l4[d] = k[3:]
-                    if set(l4.items()) - set(st["last4"].items()):
-                        ingest.retry_alerts_without_card(conn, p["id"])   # a new card's earlier alerts are read again
                     st["last4"] = l4
                     if form.get("clear_passwords"):
                         st["pdf_passwords"] = []

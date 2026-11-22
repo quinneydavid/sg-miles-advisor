@@ -64,8 +64,8 @@ def mark(conn, person, kind, h, outcome):
 
 
 def retry_alerts_without_card(conn, person):
-    """An alert for a card the person had not added yet (or whose last 4 digits were not entered) was set aside; once
-    new last 4 digits are saved, those mails are read again on the next run (the mailbox is read 45 days back), so a
+    """An alert for a card the person had not added yet (or whose last 4 digits were not entered) was set aside; when
+    the saved last 4 digits change, run_mail reads those mails again (the mailbox is read 45 days back), so a
     payment made before the card was added still counts. "failed" is how such mails were marked before 0.10.17."""
     return conn.execute("DELETE FROM ingest_seen WHERE person = %s AND kind = 'mail' AND outcome IN ('no card', 'failed')",
                         (person,)).rowcount
@@ -149,6 +149,12 @@ def run_mail(conn, person, stats):
     if not (cfg["imap_host"] and cfg["imap_user"] and cfg["imap_password"]):
         return
     st = settings(conn, person)
+    known = sorted(st["last4"])
+    if st.get("alert_cards") != known:   # a card's digits were added since the last run: its set-aside alerts are read again
+        retry_alerts_without_card(conn, person)
+        st["alert_cards"] = known
+        save_settings(conn, person, st)
+        conn.commit()
     box = imaplib.IMAP4_SSL(cfg["imap_host"], _port(cfg), timeout=60)
     try:
         box.login(cfg["imap_user"], cfg["imap_password"])
