@@ -1,6 +1,13 @@
 # Changelog
 
 ## 0.10.17
+- The shops a card earns nothing at, by the name on the line, now count. They were in the card data but never applied: wallet and top-up services (EZ-Link, FlashPay, GrabPay top-ups, YouTrip, AXS, SAM, RazerPay, Shopee Pay, Singtel Dash) on the cards that use the common exclusions, and UOB PRVI Miles' own list (SPC, Shell, brokers and others). Reviewed against the banks' current terms first:
+  - Amaze stays earning: it passes the shop through as "AMAZE*" plus the shop's name.
+  - ipaymy stays earning on most cards: DBS and Maybank dropped their CardUp and ipaymy exclusions.
+  - DBS Woman's World: CardUp and ipaymy get the base rate, no online bonus.
+  - OCBC Rewards: CardUp and ipaymy are not on OCBC's exclusion list, so they earn the base rate.
+  - UOB entries no bank document confirms (PayPal, SPC and Shell on cards other than PRVI Miles and Visa Signature) are kept for reference, not applied.
+  - DBS Vantage keeps 1.4 mpd at CardUp (code 7399). Rent through CardUp is coded 6513, which DBS excludes.
 - Two copies of the app can run side by side (for example two replicas, so a lost node is not an outage). The schema update and the catalogue seed that run at every start now hold a database lock, so a second copy starting at the same time waits for the first instead of running the same statements beside it. Nothing else is held per copy that another copy could miss: the caches check the database, and uploaded statements keep their progress there. App-wide settings changed through one copy reach the other within 30 seconds.
 - A payment alert mail for a card that was not set up yet (added to the wallet with its last 4 digits on Settings) was set aside for good, so a purchase made before the card was added never counted. When the saved last 4 digits change (or on the first mail check after this update), those set-aside alerts are read again (the mailbox is read 45 days back), and the payment lands on the new card.
 - OCBC Rewards: a card payment on Shopee earns the 6 mpd promotion again (and 4 mpd after it). The app's shop list gives Shopee MCC 5262 for every Shopee purchase, and the card's rule refused MCC 5262, because OCBC excludes Shopee Pay "under MCC 5262". The rule now goes by the name on the line instead: Shopee Pay (SHOPEEPAY / SHOPEE PAY) gets no bonus, a card payment at Shopee does. Past Shopee lines are valued again with the new rule.

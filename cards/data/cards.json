@@ -1,5 +1,5 @@
 {
-  "_doc": "Hand-checked card earn rules (KrisFlyer miles per S$). Verified 7 Nov 2026 against bank pages, milelion.com and mainlymiles.com (10 Nov 2026: every card here except OCBC Rewards re-read against the bank's own terms). Keys = card ids. A bucket earns its mpd while its cap has room; the first bucket that matches wins (order = priority). match: mcc (list, ranges 'a-b'), merchant (regex on the merchant text), fcy (true = foreign currency), channel (contactless|mobile|online|any; alerts rarely say, so default_channel = the way of paying that earns the card's bonus). cap = S$ of eligible spend per period (calendar month or statement period). min_spend: bonus only when the bucket's period spend reaches it (shown as provisional until then). rounding: per_txn_5 = floor(S$/5) blocks per transaction, pooled = the period total is rounded once, per_1 = floor to S$1. Promos carry 'until'. no_assume: a merchant with NO known MCC is assumed to earn the bonus of the card it was paid with, except in buckets marked no_assume (SIA, petrol) or matched by merchant name only. assume_fcy: a card kept for foreign charges only, so a line counts as foreign currency unless its text says Singapore.",
+  "_doc": "Hand-checked card earn rules (KrisFlyer miles per S$). Verified 7 Nov 2026 against bank pages, milelion.com and mainlymiles.com (10 Nov 2026: every card here except OCBC Rewards re-read against the bank's own terms). Keys = card ids. A bucket earns its mpd while its cap has room; the first bucket that matches wins (order = priority). match: mcc (list, ranges 'a-b'), merchant (regex on the merchant text), fcy (true = foreign currency), channel (contactless|mobile|online|any; alerts rarely say, so default_channel = the way of paying that earns the card's bonus). cap = S$ of eligible spend per period (calendar month or statement period). min_spend: bonus only when the bucket's period spend reaches it (shown as provisional until then). rounding: per_txn_5 = floor(S$/5) blocks per transaction, pooled = the period total is rounded once, per_1 = floor to S$1. Promos carry 'until'. no_assume: a merchant with NO known MCC is assumed to earn the bonus of the card it was paid with, except in buckets marked no_assume (SIA, petrol) or matched by merchant name only. assume_fcy: a card kept for foreign charges only, so a line counts as foreign currency unless its text says Singapore. exclude_merchant (regexes on the merchant text) and the merchant lists of the exclusion sets a card names: no points at all there. not_merchant in a bucket: no bonus there (the base rate stays). not_accepted_by: payment services that do not take the card.",
   "_verified": "2026-11-07",
   "exclusion_sets": {
     "common": {
@@ -34,13 +34,12 @@
         "YOUTRIP",
         "\\bAXS\\b",
         "SINGPOST.?SAM",
-        "IPAYMY",
         "RAZER\\s*PAY",
-        "\\bAMAZE\\b",
-        "SHOPEEPAY",
+        "SHOPEE\\s*PAY",
         "SINGTEL\\s*DASH"
       ],
-      "_note": "utilities, insurance, education, hospitals, charity/religious/political, government/tax, gambling, brokerage, quasi-cash, wire transfers, parking + wallet/bill top-ups. Bank-specific additions below."
+      "_note": "utilities, insurance, education, hospitals, charity/religious/political, government/tax, gambling, brokerage, quasi-cash, wire transfers, parking + wallet/bill top-ups. Bank-specific additions below.",
+      "_merchant_note": "22 Nov 2026: shops paid through a wallet or top-up service that banks give nothing on, matched by the name on the line (the MCC alone does not tell them apart). Not here: Amaze (passes the shop through as AMAZE* + the shop, and still earns, e.g. on Maybank), CardUp and ipaymy (DBS and Maybank dropped their exclusions; a card that does exclude them names them itself)."
     }
   },
   "cards": {
@@ -76,9 +75,6 @@
         "8999",
         "9405"
       ],
-      "exclude_merchant": [
-        "CARDUP"
-      ],
       "buckets": [
         {
           "id": "online",
@@ -100,6 +96,10 @@
               "8111",
               "8911",
               "8931"
+            ],
+            "not_merchant": [
+              "CARDUP",
+              "IPAYMY"
             ]
           },
           "cap": 1000,
@@ -215,7 +215,8 @@
         }
       ],
       "notes": "Uncapped, no minimum. SGD 1.4 mpd (UNI$3.5 per S$5), foreign currency 2.4 mpd (UNI$6 per S$5, payment gateway outside Singapore); IDR / MYR / THB / VND earn 3 mpd (UNI$7.5 per S$5). Expedia via expedia.com.sg/prvimiles: hotels and activities 8 mpd, listed airlines 3 mpd, booked 1 Apr 2026-31 Mar 2027 (not modelled). No UNI$ at SPC or Shell. UNI$ per transaction, S$5 blocks, rounded down. Annual fee S$261.60 (or UNI$6,500). Checked against UOB's own documents on 11 Nov 2026: Terms and Conditions Governing UOB PRVI Miles Card (exclusions, Agoda and Expedia perks) and the UOB Rewards+ T&C (earn rates).",
-      "_exclude_bank_doc": "11 Nov 2026: from the bank's own document (Terms and Conditions Governing UOB PRVI Miles Card, clause 1(ii))"
+      "_exclude_bank_doc": "11 Nov 2026: from the bank's own document (Terms and Conditions Governing UOB PRVI Miles Card, clause 1(ii))",
+      "_exclude_merchant_note": "SPC and Shell: 'excluded (except for UOB PRVI Miles American Express)', UOB PRVI Miles card T&C"
     },
     "uob_visa_signature": {
       "name": "UOB Visa Signature",
@@ -246,9 +247,6 @@
         "7349",
         "7511",
         "9405"
-      ],
-      "exclude_merchant": [
-        "PAYPAL\\s*\\*"
       ],
       "buckets": [
         {
@@ -300,7 +298,11 @@
         }
       ],
       "notes": "Min S$1,000 AND cap S$1,200 PER bucket per statement period (posting date); buckets don't combine. Physical-card or phone tap both count; chip/swipe = base. FCY billed in SGD (DCC) = base. Since 1 Sep 2025.",
-      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Rewards+ T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405"
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Rewards+ T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405",
+      "_exclude_merchant_unconfirmed": [
+        "PAYPAL\\s*\\*"
+      ],
+      "_exclude_merchant_note": "22 Nov 2026: not applied: no UOB document found that names these for this card (SPC / Shell are named for Visa Signature's petrol bonus and for PRVI Miles; PayPal nowhere)"
     },
     "uob_preferred_platinum": {
       "name": "UOB Preferred Visa",
@@ -331,11 +333,6 @@
         "7349",
         "7511",
         "9405"
-      ],
-      "exclude_merchant": [
-        "\\bSPC\\b",
-        "\\bSHELL\\b",
-        "PAYPAL\\s*\\*"
       ],
       "buckets": [
         {
@@ -425,7 +422,13 @@
         }
       ],
       "notes": "Renamed from Preferred Platinum 10 Mar 2026. S$600 per bucket per calendar month (posting date) since 1 Oct 2025. PHYSICAL CARD TAP = 0.4 (only Apple/Google/Samsung Pay earns 4). Recurring payments excluded from online.",
-      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Rewards+ T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405"
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Rewards+ T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405",
+      "_exclude_merchant_unconfirmed": [
+        "\\bSPC\\b",
+        "\\bSHELL\\b",
+        "PAYPAL\\s*\\*"
+      ],
+      "_exclude_merchant_note": "22 Nov 2026: not applied: no UOB document found that names these for this card (SPC / Shell are named for Visa Signature's petrol bonus and for PRVI Miles; PayPal nowhere)"
     },
     "uob_lady_solitaire": {
       "name": "UOB Lady's Solitaire",
@@ -454,9 +457,6 @@
         "7349",
         "7511",
         "9405"
-      ],
-      "exclude_merchant": [
-        "PAYPAL\\s*\\*"
       ],
       "boost": {
         "account": "uob_lady_savings",
@@ -516,7 +516,11 @@
         }
       ],
       "notes": "Example categories: Dining + Transport (the cardholder picks two; edit the bucket for other picks). Card 4 mpd + Lady's Savings boost: MAB S$10K-49,999 = +2 (6 mpd), 50K = +4, 100K = +6; boost within the same S$750 caps, credited monthly with the card bonus. Caps per calendar month (posting date) since 1 Aug 2025.",
-      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Lady's Cards T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405"
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (UOB Lady's Cards T&C), found by the T&C check: 5199, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 9405",
+      "_exclude_merchant_unconfirmed": [
+        "PAYPAL\\s*\\*"
+      ],
+      "_exclude_merchant_note": "22 Nov 2026: not applied: no UOB document found that names these for this card (SPC / Shell are named for Visa Signature's petrol bonus and for PRVI Miles; PayPal nowhere)"
     },
     "uob_krisflyer_cc": {
       "name": "KrisFlyer UOB",
@@ -529,9 +533,6 @@
       },
       "exclude": [
         "common"
-      ],
-      "exclude_merchant": [
-        "\\bSPC\\b"
       ],
       "buckets": [
         {
@@ -632,7 +633,11 @@
         "8999",
         "9405"
       ],
-      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (KrisFlyer UOB Credit Card T&C, clause 1.10), found by the T&C check: 5199, 5965, 5993, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 8011, 8099, 8699, 8999, 9405"
+      "_exclude_bank_doc": "10 Nov 2026: added from the bank's own document (KrisFlyer UOB Credit Card T&C, clause 1.10), found by the T&C check: 5199, 5965, 5993, 6012, 6050, 6513, 6529, 6530, 6534, 7349, 7511, 8011, 8099, 8699, 8999, 9405",
+      "_exclude_merchant_unconfirmed": [
+        "\\bSPC\\b"
+      ],
+      "_exclude_merchant_note": "22 Nov 2026: not applied: no UOB document found that names these for this card (SPC / Shell are named for Visa Signature's petrol bonus and for PRVI Miles; PayPal nowhere)"
     },
     "maybank_world": {
       "name": "Maybank World Mastercard",
@@ -684,10 +689,8 @@
         "YOUTRIP",
         "\\bAXS\\b",
         "SINGPOST.?SAM",
-        "IPAYMY",
         "RAZER\\s*PAY",
-        "\\bAMAZE\\b",
-        "SHOPEEPAY",
+        "SHOPEE\\s*PAY",
         "SINGTEL\\s*DASH"
       ],
       "buckets": [
@@ -1132,8 +1135,6 @@
         "common"
       ],
       "exclude_merchant": [
-        "CARDUP",
-        "IPAYMY",
         "SHOPEE\\s*PAY"
       ],
       "_shopee": "22 Nov 2026: OCBC excludes Shopee Pay (its FAQ: 'Transactions made using Shopee Pay under MCC 5262 will not earn any OCBC$'), not a card payment on Shopee. The app's shop list gives Shopee MCC 5262 for every Shopee purchase, so the buckets tell Shopee Pay apart by its name on the line, not by the code.",
