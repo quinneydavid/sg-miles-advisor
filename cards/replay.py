@@ -77,6 +77,7 @@ class Wallet:
         # (card, mcc, online, fcy, merchant) -> the rules that apply. Whether a rule applies never depends on caps or
         # dates, and testing it (merchant regexes) was most of a replay's time: every replay shares this table.
         self.app = app if app is not None else {}
+        self.excl_merch = {}   # card id -> payment services that do not take it (cache.merchant_exclusions)
         self.store = store   # how this person pays in a shop: 'mobile' (phone / watch) or 'tap' (the physical card)
         self.used = defaultdict(float)
         self.off = set()   # (card, bucket, period) whose minimum spend wasn't met: bonus not paid
@@ -98,6 +99,7 @@ class Wallet:
         w = Wallet(self.cards, self.rules, self.excl, self.boosts, self.amounts, self.closes, self.app, self.store, self.hist)
         w.off = set(off or ())
         w.fixtures, w.results, w.per_month = self.fixtures, self.results, self.per_month
+        w.excl_merch = self.excl_merch
         return w
 
     def key(self, cid, rule, d):
@@ -129,6 +131,13 @@ class Wallet:
         self.pending = False
         if mcc and mcc in self.excl.get(cid, ()):
             return 0.0, None, None
+        if cid in self.excl_merch:
+            mk = ("xm", cid, line.get("merchant"))
+            no = self.app.get(mk)
+            if no is None:
+                no = self.app[mk] = engine._re_any(self.excl_merch[cid], line.get("merchant"))
+            if no:
+                return 0.0, None, None
         amt = line["amount"]
         if hits and any(isinstance(r["match"], dict) and (r["match"].get("sets_base") or r["match"].get("link_only")) for r in hits):
             # a rate below the card's normal one for some kinds of spend (Maybank Man Utd: medical, schools, telecoms)
@@ -221,6 +230,7 @@ def load(conn, excluded_banks=(), amounts=None, closes=None, store="mobile", hel
     w = Wallet(cat["active"], cat["rules"], cat["excl"], cat["boosts"], amounts or {}, closes or {}, cat["app"], store,
                cat.get("hist"))
     w.fixtures, w.results, w.per_month = cat.get("fixtures") or {}, cat.get("results") or {}, cat.get("per_month") or {}
+    w.excl_merch = cat.get("excl_merch") or {}
     return w, allowed
 
 

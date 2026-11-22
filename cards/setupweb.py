@@ -540,6 +540,33 @@ def paid_section(conn, person):
     return "".join(out)
 
 
+def fixes_section(conn, person):
+    try:
+        fixes = ingest.settings(conn, person["id"]).get("fixes") or {}
+    except crypto.Unavailable:
+        return ""
+    out = [f"<h2 id=fixes>Corrections</h2><p class=muted>{len(fixes)} shop(s) corrected. A correction is made on a purchase under "
+           "<a href=/spend/lines>Transactions</a> (\"Fix this purchase\"): the currency it was charged in and the shop type. "
+           "It counts for every purchase at that shop. Stored encrypted.</p>"]
+    if fixes:
+        rows = "".join(f"<div class=row><span class=grow>{e(v.get('name') or k)}<small class=w>"
+                       + " · ".join(x for x in ((f"charged in {v['currency']}" if v.get("currency") else ""),
+                                                (f"shop type {v['mcc']}" if v.get("mcc") else "")) if x)
+                       + f"</small></span><button class='quiet sm' name=forget value='{e(k)}'>Forget</button></div>" for k, v in sorted(fixes.items()))
+        out.append(f"<form method=post action=/settings/fixes><div class=list>{rows}</div></form>")
+    return "".join(out)
+
+
+def post_fixes(conn, form, person):
+    key = (form.get("forget") or [""])[0]
+    st = ingest.settings(conn, person["id"])
+    fixes = dict(st.get("fixes") or {})
+    if fixes.pop(key, None) is not None:
+        st["fixes"] = fixes
+        ingest.save_settings(conn, person["id"], st)
+        conn.commit()
+
+
 def post_paid(conn, form, person):
     key = (form.get("forget") or [""])[0]
     st = ingest.settings(conn, person["id"])

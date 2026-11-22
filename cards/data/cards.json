@@ -859,6 +859,10 @@
         "9405"
       ],
       "_exclude_bank_doc": "10 Nov 2026: from the bank's own documents (Maybank XL TREATS Points T&C effective 1 Dec 2025; TREATS Points Rewards Programme T&C 9 Oct 2026)",
+      "not_accepted_by": [
+        "CARDUP"
+      ],
+      "_not_accepted_why": "22 Nov 2026, from the owner: CardUp does not take this card, so it is never suggested for a CardUp payment",
       "_exclude_why": "Explicit list instead of the common set: education (8211-8299) and hospitals (8062) are NOT excluded on this card (they earn 0.4 and count toward the S$500), per the XL T&C (1 Dec 2025) and the general TREATS T&C (9 Oct 2026)"
     },
     "maybank_manu": {
@@ -1129,8 +1133,10 @@
       ],
       "exclude_merchant": [
         "CARDUP",
-        "IPAYMY"
+        "IPAYMY",
+        "SHOPEE\\s*PAY"
       ],
+      "_shopee": "22 Nov 2026: OCBC excludes Shopee Pay (its FAQ: 'Transactions made using Shopee Pay under MCC 5262 will not earn any OCBC$'), not a card payment on Shopee. The app's shop list gives Shopee MCC 5262 for every Shopee purchase, so the buckets tell Shopee Pay apart by its name on the line, not by the code.",
       "buckets": [
         {
           "id": "six",
@@ -1141,8 +1147,10 @@
               "WATSONS|SHOPEE|LAZADA|TAOBAO|TIKTOK\\s*SHOP"
             ],
             "not_mcc": [
-              "5262",
               "5411"
+            ],
+            "not_merchant": [
+              "SHOPEE\\s*PAY"
             ],
             "shares_cap": {
               "four": 1.5556
@@ -1184,8 +1192,10 @@
               }
             ],
             "not_mcc": [
-              "5262",
               "5411"
+            ],
+            "not_merchant": [
+              "SHOPEE\\s*PAY"
             ]
           },
           "cap": 1110,

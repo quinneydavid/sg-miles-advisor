@@ -341,7 +341,8 @@ def load_lines(conn, person, months=None, statement=None):
     rows = conn.execute(sql + " ORDER BY txn_date, id", args).fetchall()
     prow = conn.execute("SELECT card_sources FROM people WHERE id = %s", (person,)).fetchone()
     owner = pipeline.chosen(prow)
-    memory = ingest.settings(conn, person).get("paid") or {}
+    st = ingest.settings(conn, person)
+    memory, fixes = st.get("paid") or {}, st.get("fixes") or {}
     aid = f"alerts-{person}"
     kind = {r["id"]: pipeline.kind_of(r["statement_id"], person) for r in rows}
     cm = lambda r: (r["card_id"], r["txn_date"].strftime("%Y-%m"))
@@ -365,6 +366,7 @@ def load_lines(conn, person, months=None, statement=None):
             continue   # a statement covers it: alert lines were only the preview
         d = crypto.dec_json(conn, r["data_enc"], f"stmt_lines.data_enc:{r['id']}")
         ln = {"id": r["id"], "statement_id": r["statement_id"], "card_id": r["card_id"], "date": r["txn_date"], **d}
+        pipeline.fix(ln, fixes)   # the person's correction for this shop (currency, shop type)
         ln["pay"], ln["paid_src"] = pipeline.paid(ln, memory)
         if ln["pay"]:
             ln["online"] = ln["pay"] == "online"

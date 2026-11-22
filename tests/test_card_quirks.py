@@ -138,3 +138,24 @@ def test_spend_page_shows_minimum_progress(pg, monkeypatch):
     _, body = spendweb.lines_page(conn, {}, me)
     assert "Base rate: the 4 miles per S$" in body and "So far S$15 of S$1,000, S$985 more to go" in body
     assert "earns 62 miles" in body and "S$985 more for the 4 per S$ bonus" in body
+
+
+def test_ocbc_rewards_shopee_card_payment_earns_the_promo_shopee_pay_does_not():
+    w, card, rules = wallet("ocbc_titanium")
+    shop = lambda name: {"merchant": name, "pay": "online", "fcy": False, "mcc": "5262", "today": D(9)}
+    rate, rule, _, _ = engine.rate_card(card, rules, set(), shop("SHOPEE SINGAPORE MP"))
+    assert rate == 6.0 and rule["bucket"] == "six"
+    assert engine.rate_card(card, rules, set(), shop("SHOPEEPAY*KOPI SHOP"))[1] is None   # base only
+
+
+def test_a_card_cardup_does_not_take_is_never_suggested_there():
+    from cards import cache
+    no = cache.merchant_exclusions()
+    assert no["maybank_xl"] == ["CARDUP"]
+    w, card, rules = wallet("maybank_xl")
+    p = {"merchant": "CARDUP PTE LTD", "pay": "online", "fcy": False, "mcc": "7399", "today": D(9)}
+    rate, rule, note, _ = engine.rate_card(card, rules, set(), p, excluded_merchants=no["maybank_xl"])
+    assert rate == 0 and rule is None and "not accepted" in note
+    w.excl_merch = no
+    assert w.earn("maybank_xl", line("maybank_xl", 9, 500, merchant="CARDUP PTE LTD", mcc="7399"))[0] == 0
+    assert w.earn("maybank_xl", line("maybank_xl", 9, 500, merchant="UNIQLO", mcc="5651"))[0] > 0

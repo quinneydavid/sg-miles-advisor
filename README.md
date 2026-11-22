@@ -244,7 +244,8 @@ and changes nothing there.
    folder read-only and says what failed if anything did: the server cannot be reached, the sign-in was refused, an
    app password is needed, or the folder does not exist (it then lists the folders that do).
 4. Add each card's last 4 digits and any statement PDF password further down the page, so a mail can be matched to a
-   card.
+   card. Alerts for a card added later are kept aside and read again once its digits are saved (mail up to 45 days
+   old), so a payment made before the card was set up still counts.
 
 `ingest` then reads the folder: the compose file runs it every 15 minutes, elsewhere a scheduler runs
 `python -m cards ingest`. The Settings page shows when mail was last read and what was counted. Reading alert mails
@@ -343,6 +344,11 @@ remarks are understood, as a convention any importer that fills Wealthfolio may 
 A currency named in a remark always wins over what the shop's text suggests; the text is the fallback. When an importer
 replaces an estimate by the statement's line (a new activity), the estimate leaves and the statement line arrives in
 the same run: nothing is counted twice, and an answer to "How was this paid?" stays, because it belongs to the shop.
+
+A line read wrongly can be corrected on the Transactions page: "Fix this purchase" sets how it was paid, the currency
+it was charged in (S$ or a foreign currency: some cards pay more for some currencies, UOB PRVI Miles for THB, VND, IDR
+and MYR) and the shop type (MCC). The correction is kept for the shop and applies to every purchase there, earlier
+and later ones, whichever source brings them in. Settings › Corrections lists them; each can be forgotten.
 
 Each run re-reads the last 62 days (a setting), so a line changed or deleted in Wealthfolio is changed or removed in
 the app. A line older than those days is never removed for being old.
