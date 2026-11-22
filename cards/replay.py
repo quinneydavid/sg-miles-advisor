@@ -77,7 +77,7 @@ class Wallet:
         # (card, mcc, online, fcy, merchant) -> the rules that apply. Whether a rule applies never depends on caps or
         # dates, and testing it (merchant regexes) was most of a replay's time: every replay shares this table.
         self.app = app if app is not None else {}
-        self.excl_merch = {}   # card id -> payment services that do not take it (cache.merchant_exclusions)
+        self.excl_merch = {}   # card id -> {"none", "refused"}: shop names it earns nothing at (cache.merchant_exclusions)
         self.store = store   # how this person pays in a shop: 'mobile' (phone / watch) or 'tap' (the physical card)
         self.used = defaultdict(float)
         self.off = set()   # (card, bucket, period) whose minimum spend wasn't met: bonus not paid
@@ -135,7 +135,8 @@ class Wallet:
             mk = ("xm", cid, line.get("merchant"))
             no = self.app.get(mk)
             if no is None:
-                no = self.app[mk] = engine._re_any(self.excl_merch[cid], line.get("merchant"))
+                xm = self.excl_merch[cid]
+                no = self.app[mk] = engine._re_any(xm["none"] + xm["refused"], line.get("merchant"))
             if no:
                 return 0.0, None, None
         amt = line["amount"]

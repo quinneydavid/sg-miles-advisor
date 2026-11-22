@@ -150,8 +150,8 @@ def test_ocbc_rewards_shopee_card_payment_earns_the_promo_shopee_pay_does_not():
 
 def test_a_card_cardup_does_not_take_is_never_suggested_there():
     from cards import cache
-    no = cache.merchant_exclusions()
-    assert no["maybank_xl"] == ["CARDUP"]
+    no, _ = cache.merchant_exclusions()
+    assert no["maybank_xl"]["refused"] == ["CARDUP"]
     w, card, rules = wallet("maybank_xl")
     p = {"merchant": "CARDUP PTE LTD", "pay": "online", "fcy": False, "mcc": "7399", "today": D(9)}
     rate, rule, note, _ = engine.rate_card(card, rules, set(), p, excluded_merchants=no["maybank_xl"])
@@ -159,3 +159,37 @@ def test_a_card_cardup_does_not_take_is_never_suggested_there():
     w.excl_merch = no
     assert w.earn("maybank_xl", line("maybank_xl", 9, 500, merchant="CARDUP PTE LTD", mcc="7399"))[0] == 0
     assert w.earn("maybank_xl", line("maybank_xl", 9, 500, merchant="UNIQLO", mcc="5651"))[0] > 0
+
+
+def test_shop_names_that_earn_nothing_and_those_that_still_earn():
+    from cards import cache
+    no, common = cache.merchant_exclusions()
+    excl = lambda cid: {m for spec in CJ[cid].get("exclude_mcc", []) for m in store.expand_mcc(spec)}
+    p = lambda name, mcc, pay="online": {"merchant": name, "pay": pay, "fcy": False, "mcc": mcc, "today": D(9)}
+
+    def rate(cid, name, mcc, pay="online"):
+        w, card, rules = wallet(cid)
+        return engine.rate_card(card, rules, excl(cid), p(name, mcc, pay), excluded_merchants=no.get(cid))
+
+    # DBS Vantage: CardUp earns the 1.4 base; CardUp charges one code (7399) for every payment, rent included
+    assert rate("dbs_vantage", "CARDUP PTE LTD", "7399")[0] == 1.4
+    from cards import pipeline
+
+    class NoShops:
+        def find(self, text): return {"mccs": ["6513"], "source": "wiki", "channel": "online"}
+    rent = [{"merchant": "CARDUP RENT PAYMENT", "amount": 3000}]
+    pipeline.place(None, rent, NoShops(), model=False)
+    assert rent[0]["mcc"] == "7399"
+    # wallet top-ups earn nothing on cards that use the common set
+    r = rate("dbs_vantage", "SHOPEEPAY TOPUP", "5262")
+    assert r[0] == 0 and r[2] == "no points at this shop"
+    assert rate("dbs_vantage", "EZ-LINK TOP UP", "4111")[0] == 0
+    # Amaze passes the shop through and still earns; ipaymy is not on the common list any more
+    assert rate("maybank_xl", "AMAZE* UNIQLO", "5651")[0] > 0.4
+    assert rate("dbs_vantage", "IPAYMY", "7399")[0] == 1.4
+    # DBS Woman's World: CardUp keeps the base rate, no online bonus
+    r = rate("dbs_womens_world", "CARDUP PTE LTD", "7399")
+    assert r[1] is None and r[0] == CJ["dbs_womens_world"]["base_mpd"]["sgd"]
+    # UOB PayPal: no bank document names it, so it is not applied
+    assert "uob_preferred_platinum" not in no or not any("PAYPAL" in m for m in no["uob_preferred_platinum"]["none"])
+    assert not any("AMAZE" in m or "IPAYMY" in m for m in common)

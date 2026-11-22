@@ -41,11 +41,21 @@ def usual_exclusions():
 
 
 def merchant_exclusions():
-    """Payment services that do not take a card at all (cards.json `not_accepted_by`, e.g. CardUp for Maybank XL): the
-    card is shown as earning nothing there instead of being suggested. -> {card id: [patterns]}"""
+    """Shops a card gives nothing at, by the name on the line (cards.json: exclude_merchant, plus the merchant lists of
+    the exclusion sets the card names: wallet top-ups such as ShopeePay or EZ-Link), and payment services that do not
+    take the card (not_accepted_by: CardUp for Maybank XL). An MCC alone cannot tell these apart: a Shopee Pay payment
+    and a card payment on Shopee can carry the same code.
+    -> {card id: {"none": [patterns], "refused": [patterns]}}, and the common set's patterns (for unchecked cards)."""
     import pathlib
     cj = json.loads((pathlib.Path(__file__).parent / "data" / "cards.json").read_text())
-    return {cid: list(c["not_accepted_by"]) for cid, c in cj.get("cards", {}).items() if c.get("not_accepted_by")}
+    sets = cj.get("exclusion_sets", {})
+    out = {}
+    for cid, c in cj.get("cards", {}).items():
+        none = list(c.get("exclude_merchant", [])) + [m for s in c.get("exclude", []) for m in sets.get(s, {}).get("merchant", [])]
+        refused = list(c.get("not_accepted_by", []))
+        if none or refused:
+            out[cid] = {"none": none, "refused": refused}
+    return out, list(sets.get("common", {}).get("merchant", []))
 
 
 def catalogue(conn):
@@ -93,10 +103,12 @@ def catalogue(conn):
     # A card nobody has checked against its bank's terms carries no exclusion list of its own, and would otherwise
     # "earn" on everything (insurance, utilities, e-wallet top-ups...). Assume the list banks share until it is checked.
     usual = usual_exclusions()
-    excl_merch = merchant_exclusions()
+    excl_merch, usual_merch = merchant_exclusions()
     assumed = set()
     for r in conn.execute("SELECT id FROM cards WHERE status = 'active' AND depth <> 'full'").fetchall():
         excl[r["id"]] |= usual
+        m = excl_merch.setdefault(r["id"], {"none": [], "refused": []})
+        m["none"] = list(dict.fromkeys(m["none"] + usual_merch))
         assumed.add(r["id"])
     boosts = defaultdict(list)
     for b in conn.execute("SELECT * FROM card_boosts ORDER BY id").fetchall():
