@@ -1597,7 +1597,7 @@ def settings(conn, q, person, mail_note=None, token_made=None, wf_note=None, src
         "<form method=post action=/settings/pay data-auto><div class='seg tall'>" + "".join(
             f"<label><input type=radio name=method value={k} {'checked' if (person.get('pay_method') or 'mixed') == k else ''}><span>{t}</span></label>"
             for k, t in METHODS) + "</div><noscript><p><button>Save</button></p></noscript></form>"
-        + setupweb.paid_section(conn, person) +
+        + setupweb.paid_section(conn, person) + setupweb.fixes_section(conn, person) +
         "<h2 id=cashback>Cashback cards</h2><p class=muted>Advice is about miles. Cards that pay cashback are left out of the "
         "rankings, the better-card tips and the Advisor unless this is switched on; then cashback counts as miles at 1.5¢ a "
         "mile. A cashback card you hold is always counted.</p><form method=post action=/settings/cashback data-auto>"
@@ -2056,6 +2056,18 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/settings/closing":
                 setupweb.post_closing(conn, form, p)
                 return self.send(303, "", headers={"Location": "/settings?saved=closing#closing"})
+            if u.path == "/spend/fix":
+                try:
+                    back = spendweb.post_fix(conn, form, p)
+                except crypto.Unavailable:
+                    return self.send(503, page("Unavailable", spendweb.unavailable(), "/settings", p))
+                return self.send(303, "", headers={"Location": back})
+            if u.path == "/settings/fixes":
+                try:
+                    setupweb.post_fixes(conn, form, p)
+                except crypto.Unavailable:
+                    return self.send(503, page("Unavailable", spendweb.unavailable(), "/settings", p))
+                return self.send(303, "", headers={"Location": "/settings?saved=fixes#fixes"})
             if u.path in ("/settings/paid", "/spend/paid"):
                 try:
                     back = setupweb.post_paid(conn, form, p) if u.path == "/settings/paid" else spendweb.post_paid(conn, form, p)

@@ -327,6 +327,45 @@ def test_history_lengthens_what_the_advisor_reads(pg, monkeypatch):
     assert counted >= 3                 # enough complete months for the advisor's "too little spend on file" warning to clear
 
 
+def test_a_purchase_is_corrected_and_the_shop_remembers(pg, monkeypatch):
+    conn, ids = pg
+    a = ids[0]
+    monkeypatch.setattr(llm, "guess_mccs", lambda names, cands=None: {})
+    day, earlier = TODAY, TODAY - datetime.timedelta(days=40)
+    statements.feed(conn, "alice", {"lines": [
+        {"id": "1", "date": day.isoformat(), "card": a, "merchant": "SP RCH-LINJER LONDON", "amount": 512},
+        {"id": "2", "date": earlier.isoformat(), "card": a, "merchant": "SP RCH-LINJER LONDON", "amount": 80},
+        {"id": "3", "date": day.isoformat(), "card": a, "merchant": "HOTEL ASIA HANOI VN", "amount": 300},
+        {"id": "4", "date": day.isoformat(), "card": a, "merchant": "KOPITIAM", "amount": 5}]})
+    lines = {ln["amount"]: ln for ln in cache.lines(conn, "alice")}
+    assert lines[512]["fcy"]                                            # "LONDON": read as foreign
+    me = person(conn)
+    back = spendweb.post_fix(conn, {"line": [lines[512]["id"]], "cur": ["SGD"], "mcc": ["5651"], "ch_shown": ["1"], "ch": ["online"],
+                                    "back": ["/spend/lines?month=2026-11"]}, me)
+    assert back == "/spend/lines?month=2026-11"
+    lines = {ln["amount"]: ln for ln in cache.lines(conn, "alice")}
+    for amt in (512, 80):                                               # this purchase and the shop's earlier one
+        ln = lines[amt]
+        assert (ln["fcy"], ln["currency"], ln["mcc"], ln["fixed"]) == (False, "SGD", "5651", True), amt
+    assert lines[512]["pay"] == "online"
+    assert not lines[5].get("fixed") and lines[300]["currency"] == "VND"   # other shops untouched
+    # a currency some cards pay more for: the replay sees it
+    spendweb.post_fix(conn, {"line": [lines[300]["id"]], "cur": ["THB"], "mcc": [""]}, me)
+    hotel = next(ln for ln in cache.lines(conn, "alice") if ln["amount"] == 300)
+    assert (hotel["fcy"], hotel["currency"]) == (True, "THB")
+    # listed on Settings, stored encrypted, can be forgotten
+    raw = bytes(conn.execute("SELECT settings_enc FROM people WHERE id = 'alice'").fetchone()["settings_enc"])
+    assert b"LINJER" not in raw
+    page = setupweb.fixes_section(conn, me)
+    assert "2 shop(s) corrected" in page and "charged in SGD" in page and "shop type 5651" in page
+    setupweb.post_fixes(conn, {"forget": [pipeline.shop_key("SP RCH-LINJER LONDON")]}, me)
+    assert next(ln for ln in cache.lines(conn, "alice") if ln["amount"] == 512)["fcy"]
+    # nothing chosen = the correction is dropped; a bad address is not followed
+    gone = {"ACME SHOP": {"currency": "SGD"}}
+    assert pipeline.remember_fix(gone, "ACME SHOP TAMPINES", "", "") == "ACME SHOP" and gone == {}
+    assert spendweb.post_fix(conn, {"line": ["x"], "back": ["https://elsewhere.example/"]}, me) == "/spend/lines"
+
+
 def test_the_pages_render_with_everything_on(pg, monkeypatch):
     from cards import web
     conn, ids = pg
@@ -356,7 +395,8 @@ def test_the_pages_render_with_everything_on(pg, monkeypatch):
     assert wf.boost_choice(config.load(conn, "alice")) == ("sav", str(bid))
     # the transactions page: the question on a purchase whose bank did not say, none where it did
     title, body = spendweb.lines_page(conn, {}, me)
-    assert body.count("How was this paid?") == 1 and "Remember for this shop" in body and "paid: Phone or watch (the bank&#x27;s line says so)" in body
+    assert body.count("Fix this purchase") == 2 and body.count("<select name=ch>") == 1   # no "paid" choice where the bank said
+    assert "paid: Phone or watch (the bank&#x27;s line says so)" in body
     assert "Past months are valued with today's rules" in body
     # a history import that cannot start says why; a bad date too
     ok, said = setupweb.post_wealthfolio(conn, {"action": ["history"], "since": ["soon"]}, me)

@@ -54,6 +54,55 @@ def post_paid(conn, form, person):
     return back
 
 
+def fix_form(x, how, fixed, back):
+    """"Fix this purchase": the way it was paid (unless the bank's line says), the currency it was charged in and the
+    shop type. Saved for the shop, so the next purchase there is read the same way."""
+    w = h()
+    e = w.e
+    key = pipeline.shop_key(x.get("merchant"))
+    if not key:
+        return ""
+    cur_now = x.get("currency") if x.get("fcy") else "SGD"
+    curs = pipeline.CURRENCIES + ([cur_now] if cur_now and cur_now not in pipeline.CURRENCIES else [])
+    cur_opts = "".join(f"<option value={c} {'selected' if c == cur_now else ''}>"
+                       f"{'S$ (SGD)' if c == 'SGD' else ('foreign, currency not known' if c == 'FCY' else c)}</option>" for c in curs)
+    ch = ("" if fixed else
+          "<label>Paid <select name=ch><option value=''>my usual way</option>"
+          + "".join(f"<option value={k} {'selected' if how == k and x.get('paid_src') == 'you' else ''}>{t}</option>" for k, t in pipeline.CHANNELS)
+          + "</select></label><input type=hidden name=ch_shown value=1>")
+    return ("<details class=fix style='margin:6px 0'><summary>Fix this purchase</summary>"
+            "<form method=post action=/spend/fix class=f style='flex-wrap:wrap;gap:8px;margin-top:6px'>"
+            f"<input type=hidden name=line value='{e(x.get('id'))}'><input type=hidden name=back value='{e(back)}'>"
+            f"{ch}<label>Charged in <select name=cur>{cur_opts}</select></label>"
+            f"<label>Shop type <input name=mcc value='{e(x.get('mcc') or '')}' inputmode=numeric pattern='\\d{{4}}' maxlength=4 size=5 "
+            "placeholder=MCC></label> <a href=/mcc target=_blank><small>look up a shop type</small></a>"
+            f"<button class='quiet sm'>Save for {e(key.title())}</button></form>"
+            "<small class=muted>Used for every purchase at this shop, now and later. Settings › Corrections lists them.</small></details>")
+
+
+def post_fix(conn, form, person):
+    """"Fix this purchase": how it was paid, what it was charged in and the shop type, each remembered for that shop.
+    -> where to go back to."""
+    lid = (form.get("line") or [""])[0]
+    back = (form.get("back") or [""])[0]
+    back = back if re.fullmatch(r"/spend/lines(\?[A-Za-z0-9=&_%.-]*)?", back or "") else "/spend/lines"
+    ln = next((x for x in cache.lines(conn, person["id"]) if x["id"] == lid), None)
+    if not ln:
+        return back
+    get = lambda k: (form.get(k) or [""])[0].strip()
+    st = ingest.settings(conn, person["id"])
+    fixes = dict(st.get("fixes") or {})
+    pipeline.remember_fix(fixes, ln.get("merchant"), get("cur").upper(), get("mcc"))
+    st["fixes"] = fixes
+    if "ch" in form or get("ch_shown"):
+        mem = dict(st.get("paid") or {})
+        pipeline.remember(mem, ln.get("merchant"), get("ch"), ln["date"])
+        st["paid"] = mem
+    ingest.save_settings(conn, person["id"], st)
+    conn.commit()
+    return back
+
+
 def unavailable(msg="Encryption is unavailable right now, so personal data can't be shown. Try again shortly."):
     return f"<div class=panel><p><b>Can't open your data.</b></p><p class=muted>{h().e(msg)}</p></div>"
 
@@ -320,19 +369,16 @@ def lines_page(conn, q, person):
         over = (f"<p class=warn>{e(x['over']['label'])} cap was used up: {money(x['over']['amount'])} of this earned the base rate.</p>"
                 if x.get("over") else "")
         add = [(m, c) for m, c in (x.get("add_alts") or []) if m - max(x["wallet"], x["actual"]) >= 1]
-        meta = (f"Shop type {e(x.get('mcc') or 'not known')}" + (f" (from the {e(x.get('mcc_src'))})" if x.get("mcc_src") else "") +
+        meta = (f"Shop type {e(x.get('mcc') or 'not known')}" + (" (your correction)" if x.get("fixed") and x.get("mcc_src") == "your correction" else
+                 f" (from the {e(x.get('mcc_src'))})" if x.get("mcc_src") else "") +
                 (" · online" if x.get("online") else "") + (f" · {e(x.get('currency'))}" if x.get("fcy") else "") +
+                (" · corrected by you" if x.get("fixed") else "") +
                 (f" {num(x['fcy_amount'], 2)}" if x.get("fcy") and x.get("fcy_amount") else "") +
                 (" · estimated, statement pending" if x.get("est") else "") +
                 (" · match day, result not in yet: this may rise" if x.get("match_pending") else ""))
         how = x.get("pay") or ("online" if x.get("online") else None)
         fixed = x.get("paid_src") == "bank" and x.get("pay")   # the bank's line says it: not the person's to change
-        paid = ("" if fixed or not pipeline.shop_key(x.get("merchant")) else
-                "<form method=post action=/spend/paid class=f style='margin:6px 0'>"
-                f"<input type=hidden name=line value='{e(x.get('id'))}'><input type=hidden name=back value='/spend/lines?month={cur}'>"
-                "<label>How was this paid? <select name=ch><option value=''>my usual way</option>"
-                + "".join(f"<option value={k} {'selected' if how == k and x.get('paid_src') == 'you' else ''}>{t}</option>" for k, t in pipeline.CHANNELS)
-                + "</select></label> <button class='quiet sm'>Remember for this shop</button></form>")
+        paid = fix_form(x, how, fixed, f"/spend/lines?month={cur}" + (f"&card={one}" if one else ""))
         meta += f" · paid: {e(dict(pipeline.CHANNELS).get(how, 'your usual way'))} ({e(pipeline.PAID_SRC.get(x.get('paid_src'), 'your usual way'))})"
         quick = ""
         if check:

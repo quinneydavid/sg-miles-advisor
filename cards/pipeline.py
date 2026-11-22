@@ -265,6 +265,48 @@ def remember(memory, merchant, ch, line_date=None, today=None):
     return key
 
 
+# ---------------------------------------------------------------- the person's corrections ----------------------------------------------------------------
+# what a purchase was charged in. Some cards pay more in certain currencies (UOB PRVI Miles: THB, VND, IDR, MYR).
+CURRENCIES = ["SGD", "USD", "EUR", "GBP", "JPY", "AUD", "NZD", "MYR", "THB", "IDR", "VND", "PHP", "HKD", "CNY", "TWD", "KRW",
+              "INR", "CHF", "CAD", "AED"]
+
+
+def fix(line, fixes):
+    """Apply the person's saved correction for the line's shop (fixes: {shop key: {"currency", "mcc", ...}}), in place.
+    A correction counts for every purchase at that shop, earlier ones too: what currency a shop charges in and what
+    kind of shop it is do not change with the date. -> the line."""
+    f = fixes.get(shop_key(line.get("merchant"))) if fixes else None
+    if not f:
+        return line
+    cur = f.get("currency")
+    if cur == "SGD":
+        line.update(currency="SGD", fcy=False, est=False, fcy_amount=None)
+    elif cur in CURRENCIES:
+        line.update(currency=cur, fcy=True)
+    if f.get("mcc") and re.fullmatch(r"\d{4}", f["mcc"]):
+        line.update(mcc=f["mcc"], mcc_src="your correction")
+    line["fixed"] = True
+    return line
+
+
+def remember_fix(fixes, merchant, currency=None, mcc=None):
+    """Save the person's correction for the shop of this line: the currency (one of CURRENCIES) and the shop type (4
+    digits). An empty value leaves that part to the bank's line and the shop list. -> the shop key, or None."""
+    key = shop_key(merchant)
+    if not key:
+        return None
+    entry = {}
+    if currency in CURRENCIES:
+        entry["currency"] = currency
+    if mcc and re.fullmatch(r"\d{4}", mcc):
+        entry["mcc"] = mcc
+    if entry:
+        fixes[key] = {**entry, "name": squash(merchant)[:40]}
+    else:
+        fixes.pop(key, None)
+    return key
+
+
 # ---------------------------------------------------------------- one source per card ----------------------------------------------------------------
 def kind_of(statement_id, person):
     if statement_id == f"feed-{person}":
