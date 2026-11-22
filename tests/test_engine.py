@@ -2,7 +2,7 @@ from cards import engine
 
 UOB_PREF_ONLINE = {"channel": "online", "mcc": ["5311", "5812"]}
 VISA_SIG_LOCAL = {"any_of": [{"channel": "contactless"}, {"mcc": ["5541", "5542"], "not_merchant": ["\\bSPC\\b"]}]}
-OCBC_SIX = {"merchant": ["WATSONS|SHOPEE"], "not_mcc": ["5262", "5411"]}
+OCBC_SIX = {"merchant": ["WATSONS|SHOPEE"], "not_mcc": ["5411"], "not_merchant": ["SHOPEE\\s*PAY"]}
 MAYBANK_PETROL = {"mcc": ["5541"], "fcy": False}
 
 
@@ -25,7 +25,9 @@ def test_contactless_accepts_mobile_and_tap_only():
 
 def test_merchant_rules_and_exclusions():
     assert ok(OCBC_SIX, mcc="5912", pay="online", merchant="Watsons")
-    assert not ok(OCBC_SIX, mcc="5262", pay="online", merchant="Shopee")
+    assert ok(OCBC_SIX, mcc="5262", pay="online", merchant="SHOPEE SINGAPORE")   # a card payment on Shopee
+    assert not ok(OCBC_SIX, mcc="5262", pay="online", merchant="SHOPEEPAY*SOME SHOP")   # Shopee Pay earns no bonus
+    assert not ok(OCBC_SIX, mcc="5262", pay="online", merchant="SHOPEE PAY")
     assert not ok(OCBC_SIX, mcc="5912", pay="online", merchant="Guardian")
 
 

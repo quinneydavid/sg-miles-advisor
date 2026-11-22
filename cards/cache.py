@@ -40,6 +40,14 @@ def usual_exclusions():
     return {m for spec in sets.get("common", {}).get("mcc", []) for m in store.expand_mcc(spec)}
 
 
+def merchant_exclusions():
+    """Payment services that do not take a card at all (cards.json `not_accepted_by`, e.g. CardUp for Maybank XL): the
+    card is shown as earning nothing there instead of being suggested. -> {card id: [patterns]}"""
+    import pathlib
+    cj = json.loads((pathlib.Path(__file__).parent / "data" / "cards.json").read_text())
+    return {cid: list(c["not_accepted_by"]) for cid, c in cj.get("cards", {}).items() if c.get("not_accepted_by")}
+
+
 def catalogue(conn):
     now = time.monotonic()
     with _lock:
@@ -85,6 +93,7 @@ def catalogue(conn):
     # A card nobody has checked against its bank's terms carries no exclusion list of its own, and would otherwise
     # "earn" on everything (insurance, utilities, e-wallet top-ups...). Assume the list banks share until it is checked.
     usual = usual_exclusions()
+    excl_merch = merchant_exclusions()
     assumed = set()
     for r in conn.execute("SELECT id FROM cards WHERE status = 'active' AND depth <> 'full'").fetchall():
         excl[r["id"]] |= usual
@@ -105,7 +114,7 @@ def catalogue(conn):
     from . import fixtures
     fx, per_month = fixtures.declared()
     data = {"fixtures": fx, "results": fixtures.load(conn), "per_month": per_month, "stamp": stamp, "mcc_names": mcc_names, "cards": cards, "active": {k: c for k, c in cards.items() if c["status"] == "active"},
-            "rules": rules, "excl": excl, "assumed_excl": assumed, "boosts": boosts, "photos": photos, "offers": offers, "partners": partners, "app": {}, "hist": hist}
+            "rules": rules, "excl": excl, "excl_merch": excl_merch, "assumed_excl": assumed, "boosts": boosts, "photos": photos, "offers": offers, "partners": partners, "app": {}, "hist": hist}
     with _lock:
         _cat.update(stamp=stamp, at=now, data=data)
         _img.clear()

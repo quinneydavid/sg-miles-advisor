@@ -111,12 +111,14 @@ def next_boost(rule, rate, boosts, amounts):
     return best
 
 
-def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None):
+def rate_card(card, rules, excluded_mccs, p, boosts=(), amounts=None, room=None, excluded_merchants=()):
     """Best rate this card gives the purchase: (rate, rule or None, note, extra) with extra = {cap, boosts, next}."""
     amounts = amounts or {}
     mcc = p.get("mcc")
     if mcc and mcc in excluded_mccs:
         return 0.0, None, "no points on this MCC", {}
+    if _re_any(excluded_merchants, p.get("merchant")):
+        return 0.0, None, "this card is not accepted there", {}
     base = float((card["base_fcy"] if p.get("fcy") else card["base_sgd"]) or 0)
     low_rule = None
     for r in rules:   # a lower rate for some kinds of spend replaces the normal one (Maybank Man Utd)
@@ -227,7 +229,8 @@ def rank(conn, p, held=(), excluded_banks=(), amounts=None, room=None):
         mine = c["id"] in held
         rate, rule, note, extra = rate_card(c, rules.get(c["id"], []), excl.get(c["id"], set()), p,
                                             boosts.get(c["id"], []) if mine else (), amounts if mine else None,
-                                            (room or {}).get(c["id"]) if mine else None)
+                                            (room or {}).get(c["id"]) if mine else None,
+                                            (cat.get("excl_merch") or {}).get(c["id"], ()))
         if not mine and rule is not None:
             extra["next"] = next_boost(rule, rate, boosts.get(c["id"], []), {})
         if c["id"] in fx:
