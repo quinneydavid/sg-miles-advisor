@@ -244,7 +244,8 @@ and changes nothing there.
    folder read-only and says what failed if anything did: the server cannot be reached, the sign-in was refused, an
    app password is needed, or the folder does not exist (it then lists the folders that do).
 4. Add each card's last 4 digits and any statement PDF password further down the page, so a mail can be matched to a
-   card.
+   card. Alerts for a card added later are kept aside and read again once its digits are saved (mail up to 45 days
+   old), so a payment made before the card was set up still counts.
 
 `ingest` then reads the folder: the compose file runs it every 15 minutes, elsewhere a scheduler runs
 `python -m cards ingest`. The Settings page shows when mail was last read and what was counted. Reading alert mails

@@ -2,6 +2,7 @@
 
 ## 0.10.17
 - Two copies of the app can run side by side (for example two replicas, so a lost node is not an outage). The schema update and the catalogue seed that run at every start now hold a database lock, so a second copy starting at the same time waits for the first instead of running the same statements beside it. Nothing else is held per copy that another copy could miss: the caches check the database, and uploaded statements keep their progress there. App-wide settings changed through one copy reach the other within 30 seconds.
+- A payment alert mail for a card that was not set up yet (added to the wallet with its last 4 digits on Settings) was set aside for good, so a purchase made before the card was added never counted. Saving new last 4 digits now has the next mail check read those set-aside alerts again (the mailbox is read 45 days back), and the payment lands on the new card.
 
 ## 0.10.16
 - Screenshots: an alert can show the amount before a foreign transaction fee, while the bank's app shows the posted amount, about 1% more. A screenshot row now also matches a held line at the same shop (sharing a word of its name, not counting place names and company endings) on the same side, within 5 days and 4% (at least S$2). An alert matched that way takes the posted amount, and the `.txt` says what the alert said. An alert that arrives after such a screenshot row is skipped. An exact amount is still preferred.

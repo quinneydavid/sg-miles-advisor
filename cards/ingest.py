@@ -63,6 +63,14 @@ def mark(conn, person, kind, h, outcome):
     conn.commit()
 
 
+def retry_alerts_without_card(conn, person):
+    """An alert for a card the person had not added yet (or whose last 4 digits were not entered) was set aside; once
+    new last 4 digits are saved, those mails are read again on the next run (the mailbox is read 45 days back), so a
+    payment made before the card was added still counts. "failed" is how such mails were marked before 0.10.17."""
+    return conn.execute("DELETE FROM ingest_seen WHERE person = %s AND kind = 'mail' AND outcome IN ('no card', 'failed')",
+                        (person,)).rowcount
+
+
 def text_of(msg):
     parts = []
     for part in msg.walk():
@@ -184,7 +192,7 @@ def run_mail(conn, person, stats):
                 mark(conn, person, "mail", h, "alert")
             else:
                 stats["mail not an alert" if not ln else "alert without a known card"] += 1
-                mark(conn, person, "mail", h, "skipped" if not ln else "failed")
+                mark(conn, person, "mail", h, "skipped" if not ln else "no card")
         alerts, known = screenshots.drop_seen_alerts(conn, person, alerts)
         if known:
             stats["alerts a screenshot already added"] += known
