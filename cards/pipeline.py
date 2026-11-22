@@ -35,6 +35,8 @@ ONLINE = re.compile(r"\.COM\b|\bWWW\.|\bHTTPS?\b|\bPAYPAL\s*\*|\bPP\s*\*|\bGOOGL
 # shop types paid where you are: transit fares, taxis, petrol, hotels, restaurants and bars
 ON_THE_SPOT = {"4111", "4121", "5541", "5542", "7011", "5812", "5813"}
 ATOME = re.compile(r"^\s*ATOME\s*\*", re.I)
+# CardUp charges the card under its own code for every payment, whatever is paid through it (rent, tax, bills)
+CARDUP = re.compile(r"\bCARD\s*UP\b", re.I)
 # a merchant abroad, from the line's text: a foreign city or a trailing country code ("... HOTEL BANGKOK TH")
 FOREIGN_PLACE = re.compile(
     r"\b(BANGKOK|THAILAND|HUA\s?HIN|PATTAYA|PHUKET|CHIANG\s?MAI|KRABI|SAMUI|KUALA\s?LUMPUR|JOHOR|"
@@ -173,6 +175,8 @@ def place(conn, lines, shops=None, model=None):
         m = shops.find(ln["merchant"])
         if not ln.get("mcc") and ATOME.search(ln["merchant"]):
             ln["mcc"], ln["mcc_src"] = "5999", "text"   # Atome charges the card as its own online shop type
+        if CARDUP.search(ln["merchant"]) and ln.get("mcc_src") not in ("source", "your correction"):
+            ln["mcc"], ln["mcc_src"] = "7399", "text"   # never read as rent (6513) or tax from what was paid
         if not ln.get("mcc"):
             if m and len(m["mccs"]) == 1:
                 ln["mcc"], ln["mcc_src"] = m["mccs"][0], ("you" if m["source"] == "household" else "shop list")

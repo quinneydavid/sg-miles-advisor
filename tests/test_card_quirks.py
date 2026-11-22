@@ -171,9 +171,15 @@ def test_shop_names_that_earn_nothing_and_those_that_still_earn():
         w, card, rules = wallet(cid)
         return engine.rate_card(card, rules, excl(cid), p(name, mcc, pay), excluded_merchants=no.get(cid))
 
-    # DBS Vantage: CardUp earns the 1.4 base (code 7399); rent through CardUp (6513) is on DBS's exclusion list
+    # DBS Vantage: CardUp earns the 1.4 base; CardUp charges one code (7399) for every payment, rent included
     assert rate("dbs_vantage", "CARDUP PTE LTD", "7399")[0] == 1.4
-    assert rate("dbs_vantage", "CARDUP PTE LTD", "6513")[0] == 0
+    from cards import pipeline
+
+    class NoShops:
+        def find(self, text): return {"mccs": ["6513"], "source": "wiki", "channel": "online"}
+    rent = [{"merchant": "CARDUP RENT PAYMENT", "amount": 3000}]
+    pipeline.place(None, rent, NoShops(), model=False)
+    assert rent[0]["mcc"] == "7399"
     # wallet top-ups earn nothing on cards that use the common set
     r = rate("dbs_vantage", "SHOPEEPAY TOPUP", "5262")
     assert r[0] == 0 and r[2] == "no points at this shop"
