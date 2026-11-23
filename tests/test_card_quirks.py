@@ -193,3 +193,13 @@ def test_shop_names_that_earn_nothing_and_those_that_still_earn():
     # UOB PayPal: no bank document names it, so it is not applied
     assert "uob_preferred_platinum" not in no or not any("PAYPAL" in m for m in no["uob_preferred_platinum"]["none"])
     assert not any("AMAZE" in m or "IPAYMY" in m for m in common)
+
+
+def test_krisflyer_uob_kris_plus_payments_earn_three():
+    w, card, rules = wallet("uob_krisflyer_cc")
+    for name in ("KRISPAY*TOAST BOX", "KRIS PAY SINGAPORE", "KRIS+ *ARTEASAN", "KRISPLUS", "SINGAPORE AIRLINES"):
+        p = {"merchant": name, "pay": "online", "fcy": False, "mcc": "5814", "today": D(9)}
+        rate, rule, _, _ = engine.rate_card(card, rules, set(), p)
+        assert rate == 3.0 and rule["bucket"] == "sia", name
+    p = {"merchant": "KRISTAL CAFE", "pay": "mobile", "fcy": False, "mcc": "5999", "today": D(9)}
+    assert engine.rate_card(card, rules, set(), p)[1] is None

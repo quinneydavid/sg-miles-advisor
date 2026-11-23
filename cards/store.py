@@ -69,9 +69,11 @@ def current_rules(conn, cid):
         "SELECT * FROM card_rules WHERE card_id = %s AND valid_to IS NULL", (cid,)).fetchall()}
 
 
-def upsert_rule(conn, cid, bucket, fields, mccs=None):
+def upsert_rule(conn, cid, bucket, fields, mccs=None, correction=None):
     """fields: RULE_FIELDS subset. mccs: [(mcc, effect, rate)] for this rule (replaces the list on a new version).
-    Returns the current rule id."""
+    correction: why the change mends the app's own reading of a rule the bank did not change (cards.json "correction"):
+    the current row is changed in place, so purchases made before today are valued with the mended rule too, instead
+    of a new version from today. Returns the current rule id."""
     cur = current_rules(conn, cid).get(bucket)
     if cur is not None:
         if cur["depth"] == "full" and fields.get("depth", "headline") == "headline":
@@ -90,6 +92,18 @@ def upsert_rule(conn, cid, bucket, fields, mccs=None):
             words = [f for f in ("label", "conditions") if f in fields and fields[f] != cur[f]]
             conn.execute(f"UPDATE card_rules SET checked_at = now(){''.join(f', {f} = %s' for f in words)} WHERE id = %s",
                          [fields[f] for f in words] + [cur["id"]])
+            return cur["id"]
+        if correction:
+            for f in changed:
+                log(conn, cid, f"{bucket} {f} corrected", _norm(cur[f]), _norm(fields[f]), correction[:300])
+            cols = [f for f in RULE_FIELDS if f in fields]
+            conn.execute(f"UPDATE card_rules SET {', '.join(f + ' = %s' for f in cols)}, checked_at = now() WHERE id = %s",
+                         [Jsonb(fields[f]) if f == "match" else fields[f] for f in cols] + [cur["id"]])
+            if mcc_changed:
+                conn.execute("DELETE FROM card_rule_mccs WHERE rule_id = %s", (cur["id"],))
+                for m, e, r in mccs:
+                    conn.execute("INSERT INTO card_rule_mccs (rule_id, mcc, effect, rate) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                                 (cur["id"], m, e, r))
             return cur["id"]
         for f in changed:
             log(conn, cid, f"{bucket} {f}", _norm(cur[f]), _norm(fields[f]), fields.get("source_url"))

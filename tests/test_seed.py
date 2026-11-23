@@ -41,3 +41,26 @@ def test_two_copies_starting_at_once_take_turns(pg):
     b.join()
     assert order == ["a in", "a out", "b in", "b out"]
     assert db.migrate() >= 1   # the lock was given back
+
+
+def test_a_correction_mends_the_rule_for_past_purchases_too(pg):
+    """A bucket marked "correction" is changed in place: no new version from today, so earlier purchases get it too.
+    A change without it still starts a new version (a bank's real change)."""
+    from psycopg.types.json import Jsonb
+    conn, _ = pg
+    q = "SELECT id, match, valid_from, valid_to FROM card_rules WHERE card_id = %s AND bucket = %s ORDER BY id"
+    old = conn.execute(q, ("uob_krisflyer_cc", "sia")).fetchall()[-1]
+    stale = dict(old["match"], merchant=["SINGAPORE\\s*AIR|\\bSIA\\b|SCOOT|KRISSHOP|KRIS\\+|KRISPLUS|PELAGO"])
+    conn.execute("UPDATE card_rules SET match = %s, valid_from = '2026-01-01' WHERE id = %s", (Jsonb(stale), old["id"]))
+    conn.commit()
+    seed.seed(conn)
+    rows = conn.execute(q, ("uob_krisflyer_cc", "sia")).fetchall()
+    assert [r["id"] for r in rows] == [old["id"]] and rows[0]["valid_to"] is None
+    assert "KRIS\\s*PAY" in rows[0]["match"]["merchant"][0] and str(rows[0]["valid_from"]) == "2026-01-01"
+    # the same kind of change on a bucket without "correction": a new version from today
+    old = conn.execute(q, ("uob_krisflyer_cc", "accelerated")).fetchall()[-1]
+    conn.execute("UPDATE card_rules SET rate = 2.0 WHERE id = %s", (old["id"],))
+    conn.commit()
+    seed.seed(conn)
+    rows = conn.execute(q, ("uob_krisflyer_cc", "accelerated")).fetchall()
+    assert len(rows) == 2 and rows[0]["valid_to"] is not None and rows[1]["valid_to"] is None
