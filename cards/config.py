@@ -56,6 +56,7 @@ PERSON = {
     "wf_days": (None, "62", False),                # the rolling window that is re-read on each run
     "wf_map": (None, "", False),                   # JSON {Wealthfolio account id: card id}
     "wf_accounts": (None, "", False),              # JSON [{id, name, type}] as last listed (names only)
+    "wf_declined": (None, "", False),              # JSON {account id: [cards held then]}: saved as "not a card"
     "wf_last": (None, "", False),                  # JSON: when the last import ran, its counts or what went wrong
     "wf_boost": (None, "", False),                 # JSON {"account": Wealthfolio account id, "boost": card boost id}
     "wf_hist": (None, "", False),                  # JSON: the history import's progress and result (counts, months)

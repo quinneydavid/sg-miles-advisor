@@ -177,6 +177,8 @@ class Conn(SettingsConn):
                                                                 if v["statement_id"] != args[1] and v["card_id"] in args[2] and v["txn_date"] <= args[3]}]
         elif s.startswith("SELECT name, mccs, source, channel FROM merchants"):
             self.rows = list(self.shops)
+        elif s.startswith("SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY"):
+            self.rows = [{"card_id": c} for c in {v["card_id"] for v in self.lines.values() if v["person"] == args[0] and v["card_id"] in args[1]}]
         elif s.startswith("SELECT c.id, c.name FROM cards c WHERE c.id = ANY"):
             self.rows = [c for c in self.cards if c["id"] in args[0]]
         elif s.startswith("SELECT * FROM people ORDER BY id"):
@@ -695,3 +697,43 @@ def test_a_card_given_to_another_source_is_not_imported_and_one_given_to_wealthf
     counts = run(conn, today=now)
     assert counts["cards left to another source"] == 1 and counts["cards left to the feeder"] == 0
     assert [x["card"] for x in conn.stored()] == ["dbs_ww"]
+
+
+def test_a_card_added_later_is_matched_to_its_new_account_by_itself(server):
+    """Citi Rewards added in the app after Wealthfolio was set up, with an account of its own there: the next import
+    lists the accounts again, matches it by name and brings in its purchases, earlier ones too."""
+    server.activities["acc-1"] = [act(1, "2026-11-01", "WITHDRAWAL", 10, "KOPITIAM")]
+    conn = connected(server, amap={"acc-1": "dbs_ww"})
+    # UOB Preferred comes from its statements, not Wealthfolio (where an account is named after it too)
+    conn.lines["stmt-1"] = {"statement_id": "upload-1", "person": "alice", "card_id": "uob_pp", "section": "x",
+                            "txn_date": D(2026, 11, 2), "data_enc": b""}
+    run(conn)
+    server.accounts.append({"id": "acc-9", "name": "Citi Rewards Card", "accountType": "CASH"})
+    server.activities["acc-9"] = [act(9, "2026-11-03", "WITHDRAWAL", 42.5, "SOME SHOP")]
+    conn.people["alice"]["held_cards"] = ["dbs_ww", "uob_pp", "citi_r"]
+    counts = run(conn)
+    assert counts["accounts matched to a new card"] == 1 and counts["new"] == 1
+    cfg = config.load(conn, "alice")
+    assert wf.mapping(cfg) == {"acc-1": "dbs_ww", "acc-9": "citi_r"}
+    assert "Citi Rewards Card" in cfg["wf_accounts"]                                   # listed without "Save and test"
+    assert ("citi_r", 42.5) in [(x["card"], x["amount"]) for x in conn.stored()]
+    assert "accounts matched to a new card" not in run(conn)                           # once
+    # UOB Preferred has transactions already: not a new card, its Wealthfolio account is left alone
+    assert "acc-2" not in wf.mapping(config.load(conn, "alice"))
+
+
+def test_what_the_person_said_is_not_a_card_stays_so(server):
+    conn = connected(server, amap={"acc-1": "dbs_ww"})
+    conn.people["alice"]["held_cards"] = ["dbs_ww", "uob_pp", "citi_r"]
+    form = lambda **kv: {k: [v] for k, v in kv.items()}
+    assert setupweb.post_wealthfolio(conn, form(action="map", acct_0="acc-1", card_0="dbs_ww", acct_1="acc-2", acct_2="acc-3",
+                                                wf_days="62"), conn.people["alice"]) is None
+    server.accounts[1]["name"] = "Citi Rewards"                                       # renamed to look like a held card
+    config.put(conn, "wf_on", "1", "alice")
+    run(conn)
+    assert wf.mapping(config.load(conn, "alice")) == {"acc-1": "dbs_ww"}
+    # a card added after that "not a card" answer can still be matched to it
+    assert wf.new_matches([{"id": "acc-2", "name": "Citi Rewards", "type": "CASH"}], [{"id": "citi_r", "name": "Citi Rewards"}],
+                          {"acc-1": "dbs_ww"}, {"acc-2": ["dbs_ww", "uob_pp"]}) == {"acc-2": "citi_r"}
+    # nobody matched anything yet: nothing is matched by itself
+    assert wf.new_matches([{"id": "acc-2", "name": "Citi Rewards", "type": "CASH"}], [{"id": "citi_r", "name": "Citi Rewards"}], {}) == {}

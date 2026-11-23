@@ -186,6 +186,8 @@ def _wf_counts(counts):
         said += f"; {counts['cards left to the feeder']} card(s) left to the feeder that already sends them"
     if counts.get("cards left to another source"):
         said += f"; {counts['cards left to another source']} card(s) left to the source chosen for them"
+    if counts.get("accounts matched to a new card"):
+        said += f"; {counts['accounts matched to a new card']} account(s) matched to a card added since (check below)"
     if counts.get("savings balance read"):
         said += "; savings balance read"
     if counts.get("savings balance not read"):
@@ -253,7 +255,13 @@ def wealthfolio_section(conn, person, note=None):
 
     held = _held(conn, person)
     saved = wealthfolio.mapping(cfg)
-    hints = {} if saved else wealthfolio.suggest(accounts, held)
+    saved_held = wealthfolio.mapping(cfg, {c["id"] for c in held})
+    if saved_held:   # a card added since: suggested for its account, as the next import would match it
+        used = {r["card_id"] for r in conn.execute("SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY(%s)",
+                                                   (pid, [c["id"] for c in held] or [""])).fetchall()}
+        hints = wealthfolio.new_matches(accounts, held, saved_held, wealthfolio.declined(cfg), used)
+    else:            # nothing matched yet: every account whose name plainly names a held card
+        hints = wealthfolio.suggest(accounts, held)
     rows = []
     for i, a in enumerate(accounts):
         chosen = saved.get(a["id"]) or hints.get(a["id"]) or ""
@@ -287,7 +295,9 @@ def wealthfolio_section(conn, person, note=None):
         + _switch("Import on a schedule", "wf_on", cfg["wf_on"] == "1",
                   "The import then runs whenever <code>ingest</code> runs (the compose file runs it every 15 minutes).")
         + "<p><button name=action value=import>Save and import now</button> <button class=quiet name=action value=map>Save</button></p></form>"
-        "<p><small>If Wealthfolio has a new account, press \"Save and test\" above to list the accounts again.</small></p>")
+        "<p><small>Each import lists Wealthfolio's accounts again. A card added here later is matched to its account by "
+        "itself when the account's name plainly names it (the next import shows \"accounts matched to a new card\"); "
+        "change it here if it is wrong.</small></p>")
     # ---- older purchases, once
     hist = wealthfolio.history_state(cfg)
     out.append("<h3 style='font-size:14px;margin:18px 0 4px'>Older purchases</h3><p class=muted>The schedule keeps the last "
@@ -330,7 +340,7 @@ def post_wealthfolio(conn, form, person):
     get = lambda k: (form.get(k) or [""])[0].strip()
     action = get("action") or "save"
     if action == "disconnect":
-        for key in ("wf_url", "wf_token", "wf_map", "wf_accounts", "wf_last"):
+        for key in ("wf_url", "wf_token", "wf_map", "wf_accounts", "wf_declined", "wf_last"):
             config.put(conn, key, "", pid)
         config.put(conn, "wf_on", "0", pid)
         conn.commit()
@@ -398,11 +408,13 @@ def post_wealthfolio(conn, form, person):
         return True, "The history import has started. Its progress is shown under \"Older purchases\"; reload this page to follow it."
     # map / import: which account is which card, the window, the switch
     held = {c["id"] for c in _held(conn, person)}
-    amap, i = {}, 0
+    amap, no, i = {}, {}, 0
     while f"acct_{i}" in form:
         card = get(f"card_{i}")
         if card in held:
             amap[get(f"acct_{i}")] = card
+        else:   # "not a card": not matched by itself later to a card held now (a card added later still can be)
+            no[get(f"acct_{i}")] = sorted(held)
         i += 1
     if len(set(amap.values())) < len(amap):
         return False, "Not saved: two accounts were given the same card. One card is one account."
@@ -413,6 +425,8 @@ def post_wealthfolio(conn, form, person):
     if not 7 <= days <= 400:
         return False, "Not saved: the days must be between 7 and 400."
     config.put(conn, "wf_map", json.dumps(amap), pid)
+    keep = {a: v for a, v in wealthfolio.declined(config.load(conn, pid)).items() if a not in amap}
+    config.put(conn, "wf_declined", json.dumps(dict(keep, **no)), pid)
     config.put(conn, "wf_days", str(days), pid)
     config.put(conn, "wf_on", "1" if form.get("wf_on") else "0", pid)
     conn.commit()

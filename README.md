@@ -328,6 +328,10 @@ On the Settings page, section Wealthfolio:
    account whose name plainly names a held card is suggested.
 4. "Save and import now" reads the transactions. With "Import on a schedule" ticked, every `ingest` run does it again
    (the compose file runs `ingest` every 15 minutes). `python -m cards wealthfolio --person <id>` runs it by hand.
+5. A card added later: each import lists the accounts again, and a card that has no account and no transactions yet is
+   matched by itself to the account whose name plainly names it. The import's counts then say "accounts matched to a
+   new card"; change it on Settings if it is wrong. An account saved as "not a card" is not matched to a card held at
+   the time.
 
 What is imported: a `WITHDRAWAL` is a purchase, a `CREDIT` is a refund. Card payments (`TRANSFER_IN`), deposits and the
 bank's own charges (interest, late and conversion fees) are left out; annual fees go to the fee tracker. The merchant
