@@ -1,5 +1,5 @@
 {
-  "_doc": "Hand-checked card earn rules (KrisFlyer miles per S$). Verified 7 Nov 2026 against bank pages, milelion.com and mainlymiles.com (10 Nov 2026: every card here except OCBC Rewards re-read against the bank's own terms). Keys = card ids. A bucket earns its mpd while its cap has room; the first bucket that matches wins (order = priority). match: mcc (list, ranges 'a-b'), merchant (regex on the merchant text), fcy (true = foreign currency), channel (contactless|mobile|online|any; alerts rarely say, so default_channel = the way of paying that earns the card's bonus). cap = S$ of eligible spend per period (calendar month or statement period). min_spend: bonus only when the bucket's period spend reaches it (shown as provisional until then). rounding: per_txn_5 = floor(S$/5) blocks per transaction, pooled = the period total is rounded once, per_1 = floor to S$1. Promos carry 'until'. no_assume: a merchant with NO known MCC is assumed to earn the bonus of the card it was paid with, except in buckets marked no_assume (SIA, petrol) or matched by merchant name only. assume_fcy: a card kept for foreign charges only, so a line counts as foreign currency unless its text says Singapore. exclude_merchant (regexes on the merchant text) and the merchant lists of the exclusion sets a card names: no points at all there. not_merchant in a bucket: no bonus there (the base rate stays). not_accepted_by: payment services that do not take the card.",
+  "_doc": "Hand-checked card earn rules (KrisFlyer miles per S$). Verified 7 Nov 2026 against bank pages, milelion.com and mainlymiles.com (10 Nov 2026: every card here except OCBC Rewards re-read against the bank's own terms). Keys = card ids. A bucket earns its mpd while its cap has room; the first bucket that matches wins (order = priority). match: mcc (list, ranges 'a-b'), merchant (regex on the merchant text), fcy (true = foreign currency), channel (contactless|mobile|online|any; alerts rarely say, so default_channel = the way of paying that earns the card's bonus). cap = S$ of eligible spend per period (calendar month or statement period). min_spend: bonus only when the bucket's period spend reaches it (shown as provisional until then). rounding: per_txn_5 = floor(S$/5) blocks per transaction, pooled = the period total is rounded once, per_1 = floor to S$1. Promos carry 'until'. no_assume: a merchant with NO known MCC is assumed to earn the bonus of the card it was paid with, except in buckets marked no_assume (SIA, petrol) or matched by merchant name only. assume_fcy: a card kept for foreign charges only, so a line counts as foreign currency unless its text says Singapore. exclude_merchant (regexes on the merchant text) and the merchant lists of the exclusion sets a card names: no points at all there. not_merchant in a bucket: no bonus there (the base rate stays). not_accepted_by: payment services that do not take the card. correction (in a bucket): the last edit mends the app's own reading of a rule the bank did not change, so it applies to past purchases too instead of starting a new version from today; leave it on until the next real change, then replace it.",
   "_verified": "2026-11-07",
   "exclusion_sets": {
     "common": {
@@ -105,7 +105,8 @@
           "cap": 1000,
           "period": "calendar",
           "rounding": "pooled",
-          "tier_basis": "not for these MCCs, which keep the base rate (Woman's Card T&C, Table 1, updated 5 Nov 2026); CardUp and ipaymy also earn only the base rate"
+          "tier_basis": "not for these MCCs, which keep the base rate (Woman's Card T&C, Table 1, updated 5 Nov 2026); CardUp and ipaymy also earn only the base rate",
+          "correction": "22 Nov 2026: CardUp and ipaymy keep the base rate (they were in an exclusion list the app never applied); DBS's rule did not change"
         }
       ],
       "notes": "Online 4 mpd on the first S$1,000 a calendar month (by transaction date = the merchant's settlement date; supplementary cards share the cap). Above the cap: 0.4 local / 1.2 foreign. Points expire after 1 year. Checked against DBS's Woman's Card T&C (updated 5 Nov 2026) on 10 Nov 2026.",
@@ -545,9 +546,10 @@
               "3075"
             ],
             "merchant": [
-              "SINGAPORE\\s*AIR|\\bSIA\\b|SCOOT|KRISSHOP|KRIS\\+|KRISPLUS|PELAGO"
+              "SINGAPORE\\s*AIR|\\bSIA\\b|SCOOT|KRISSHOP|KRIS\\s*\\+|KRIS\\s*PLUS|KRIS\\s*PAY|PELAGO"
             ]
-          }
+          },
+          "correction": "23 Nov 2026: Kris+ payments that show as KRISPAY were not recognised; UOB's rule did not change"
         },
         {
           "id": "accelerated",
@@ -1161,7 +1163,8 @@
           "period": "calendar",
           "until": "2027-03-31",
           "shares_cap_with": "four",
-          "tier_basis": "15X = 15 OCBC$ per S$ (14 above the base 1); OCBC may count this bonus toward the 10,000 OCBC$ monthly limit of the 4 mpd bonus (9 per S$), so each S$1 here takes S$1.56 of that room"
+          "tier_basis": "15X = 15 OCBC$ per S$ (14 above the base 1); OCBC may count this bonus toward the 10,000 OCBC$ monthly limit of the 4 mpd bonus (9 per S$), so each S$1 here takes S$1.56 of that room",
+          "correction": "22 Nov 2026: Shopee Pay told apart by its name, not MCC 5262 (which the shop list gives every Shopee purchase); OCBC's rule did not change"
         },
         {
           "id": "four",
@@ -1200,7 +1203,8 @@
             ]
           },
           "cap": 1110,
-          "period": "calendar"
+          "period": "calendar",
+          "correction": "22 Nov 2026: Shopee Pay told apart by its name, not MCC 5262 (which the shop list gives every Shopee purchase); OCBC's rule did not change"
         }
       ],
       "notes": "4 mpd (50 OCBC$ per S$5) on the shopping MCCs and named merchants; the bonus is capped at 10,000 OCBC$ a calendar month = about S$1,110 of spend, shared with supplementary cards, and OCBC may count other campaigns' bonus (the 6 mpd promo) toward it. Bonus points post by the end of the next month. Points per S$5 block per transaction. Shopee Pay (MCC 5262) earns nothing; MCC 5411 earns no bonus. No points at all while on SmartChange. OCBC$ expire after 24 months. Checked on 10 Nov 2026 against OCBC's Rewards Card Programme T&C (updated 5 Oct 2026). 6 mpd promotion (15X OCBC$ Campaign T&C, 1 Jul 2026): an extra 5 OCBC$ per S$1 at Watsons, Shopee, Lazada, TikTok Shop and Taobao, up to 5,000 bonus OCBC$ a calendar month (S$1,000 of spend), 1 Jul 2026 to 31 Mar 2027, by posting date. Exclusions per OCBC's Cards Rewards Transaction Exclusion List (4 Nov 2026); it also names AXS, SAM, EZ-Link, Transit Link and ShopeePay. NOT checked against a bank document: the annual fee and its waiver rule. Fee waiver is asked for in the OCBC app (More > Card Services > Request fee waiver).",

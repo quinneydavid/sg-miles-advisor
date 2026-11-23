@@ -79,7 +79,7 @@ def seed(conn):
                 "cap_period": b.get("period") or "none", "min_spend": b.get("min_spend"), "rounding": b.get("rounding"),
                 "mcc_list_known": bool(inc or exc), "conditions": "; ".join(cond) or None,
                 "promo_until": b.get("until"), "depth": "full", "source_url": SOURCE},
-                mccs)
+                mccs, correction=b.get("correction"))
         if c.get("boost"):
             b = c["boost"]
             conn.execute("INSERT INTO card_boosts (card_id, label, requirement, tiers, mode, applies_to, depth, source_url) VALUES "

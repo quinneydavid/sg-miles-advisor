@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.10.17
+- KrisFlyer UOB: a payment through Kris+ that shows on the card as KRISPAY (or "KRIS PAY", "KRIS +") earns the 3 mpd Singapore Airlines group rate. Only "KRIS+" and "KRISPLUS" were recognised, so these showed the 1.2 mpd base.
+- A fix to the app's own reading of a card rule now applies to past purchases too. Before, any change to a rule in the card data started a new version from the day of the update, as if the bank had changed it, so purchases made earlier kept the wrong rate. A rule marked as a correction is now changed in place. Marked this way: KrisFlyer UOB's KrisPay fix, OCBC Rewards' Shopee fix and DBS Woman's World's CardUp change, so earlier KrisPay and Shopee purchases get 3 mpd and 6 mpd as well. A real change by a bank still starts a new version.
 - The shops a card earns nothing at, by the name on the line, now count. They were in the card data but never applied: wallet and top-up services (EZ-Link, FlashPay, GrabPay top-ups, YouTrip, AXS, SAM, RazerPay, Shopee Pay, Singtel Dash) on the cards that use the common exclusions, and UOB PRVI Miles' own list (SPC, Shell, brokers and others). Reviewed against the banks' current terms first:
   - Amaze stays earning: it passes the shop through as "AMAZE*" plus the shop's name.
   - ipaymy stays earning on most cards: DBS and Maybank dropped their CardUp and ipaymy exclusions.
