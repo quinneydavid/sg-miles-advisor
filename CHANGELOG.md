@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.18
+- Wealthfolio picks up a card added later. Each import now lists Wealthfolio's accounts again; before, a new account showed only after "Save and test" was pressed on Settings. A held card with no account and no transactions yet is matched by itself to the account whose name plainly names it, for someone who already imports a card from Wealthfolio. Its purchases in the kept days come in on that run, earlier ones included. The import's counts say so, and Settings suggests the match too. An account saved as "not a card" is not matched to any card held at that time. Before, a card added after the first match had no suggestion at all and was matched only by hand.
+
 ## 0.10.17
 - KrisFlyer UOB: a payment through Kris+ that shows on the card as KRISPAY (or "KRIS PAY", "KRIS +") earns the 3 mpd Singapore Airlines group rate. Only "KRIS+" and "KRISPLUS" were recognised, so these showed the 1.2 mpd base.
 - A fix to the app's own reading of a card rule now applies to past purchases too. Before, any change to a rule in the card data started a new version from the day of the update, as if the bank had changed it, so purchases made earlier kept the wrong rate. A rule marked as a correction is now changed in place. Marked this way: KrisFlyer UOB's KrisPay fix, OCBC Rewards' Shopee fix and DBS Woman's World's CardUp change, so earlier KrisPay and Shopee purchases get 3 mpd and 6 mpd as well. A real change by a bank still starts a new version.

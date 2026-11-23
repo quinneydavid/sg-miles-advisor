@@ -444,6 +444,55 @@ def suggest(accounts, cards):
     return out
 
 
+def declined(cfg):
+    try:
+        d = json.loads(cfg.get("wf_declined") or "{}")
+    except ValueError:
+        d = {}
+    return d if isinstance(d, dict) else {}
+
+
+def new_matches(accounts, cards, amap, no=None, has_lines=()):
+    """Accounts to match by themselves: an account no card is matched to, whose name plainly names a held card that
+    has no account and no transactions yet (a card added after Wealthfolio was set up), for someone who already imports
+    a card from Wealthfolio. An account the person saved as "not a card" while that card was already held stays as
+    they left it. -> {account id: card id}"""
+    no = no or {}
+    if not amap:
+        return {}
+    taken = set(amap.values()) | set(has_lines)
+    free_accounts = [a for a in accounts if a["id"] not in amap]
+    free_cards = [c for c in cards if c["id"] not in taken]
+    if not free_accounts or not free_cards:
+        return {}
+    out = {}
+    for acct, card in suggest(free_accounts, free_cards).items():
+        if card in no.get(acct, ()) or card in out.values():
+            continue
+        out[acct] = card
+    return out
+
+
+def refresh_matches(conn, pid, cfg, client, held):
+    """Each run: list Wealthfolio's accounts again (a new one shows without "Save and test") and match new cards.
+    -> the accounts matched now ({account id: card id}); never stops the import."""
+    try:
+        accounts = client.accounts()
+    except Exception:
+        return {}
+    if accounts:
+        config.put(conn, "wf_accounts", json.dumps(accounts), pid)
+    cards = conn.execute("SELECT c.id, c.name FROM cards c WHERE c.id = ANY(%s) ORDER BY c.name", (list(held) or [""],)).fetchall()
+    amap = mapping(cfg)
+    used = {r["card_id"] for r in conn.execute("SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY(%s)",
+                                               (pid, list(held) or [""])).fetchall()}
+    new = new_matches(accounts or known_accounts(cfg), cards, mapping(cfg, set(held)), declined(cfg), used)
+    if new:
+        amap.update(new)
+        config.put(conn, "wf_map", json.dumps(amap), pid)
+    return new
+
+
 def suggest_boost(label, cash):
     """The one cash account whose name plainly fits a boost's linked account ("UOB Lady's Savings balance"), or None
     when none or more than one could be it. cash: [{"id", "name"}]."""
@@ -560,15 +609,16 @@ def run_person(conn, person, cfg=None, today=None, client=None):
     cfg = cfg or config.load(conn, pid)
     try:
         held = set(person["held_cards"] or [])
-        amap = mapping(cfg, held)
         if not (cfg.get("wf_url") and cfg.get("wf_token")):
             raise Problem("Wealthfolio is not connected.")
+        c = client or Client(cfg["wf_url"], cfg["wf_token"])
+        matched = refresh_matches(conn, pid, cfg, c, held)   # a card added since: its account, when the name says it
+        amap = dict(mapping(cfg, held), **matched)
         if not amap and not boost_choice(cfg)[0]:
             raise Problem("No Wealthfolio account is matched to a card yet.")
         since, until = window(cfg, today)
         fed = fed_cards(conn, pid, since, until)
         owner = pipeline.chosen(person)
-        c = client or Client(cfg["wf_url"], cfg["wf_token"])
         lines, counts = [], {"new": 0, "updated": 0, "removed": 0, "could not place": 0, "payments and other": 0,
                              "bank charges": 0, "cards left to the feeder": 0, "cards left to another source": 0}
         done = set()
@@ -586,6 +636,8 @@ def run_person(conn, person, cfg=None, today=None, client=None):
             for k, v in extra.items():
                 counts[k] += v
         counts["could not place"] = place(conn, lines)
+        if matched:
+            counts["accounts matched to a new card"] = len(matched)
         counts.update(store(conn, pid, lines, since, until, done, set(amap.values())))
         for card, day in close_days(lines).items():
             pipeline.set_close_day(conn, pid, card, day, "note")
