@@ -186,6 +186,8 @@ def _wf_counts(counts):
         said += f"; {counts['cards left to the feeder']} card(s) left to the feeder that already sends them"
     if counts.get("cards left to another source"):
         said += f"; {counts['cards left to another source']} card(s) left to the source chosen for them"
+    if counts.get("held cards without an account"):
+        said += f"; {counts['held cards without an account']} held card(s) without a Wealthfolio account (match them below)"
     if counts.get("accounts matched to a new card"):
         said += f"; {counts['accounts matched to a new card']} account(s) matched to a card added since (check below)"
     if counts.get("savings balance read"):
@@ -257,9 +259,9 @@ def wealthfolio_section(conn, person, note=None):
     saved = wealthfolio.mapping(cfg)
     saved_held = wealthfolio.mapping(cfg, {c["id"] for c in held})
     if saved_held:   # a card added since: suggested for its account, as the next import would match it
-        used = {r["card_id"] for r in conn.execute("SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY(%s)",
-                                                   (pid, [c["id"] for c in held] or [""])).fetchall()}
-        hints = wealthfolio.new_matches(accounts, held, saved_held, wealthfolio.declined(cfg), used)
+        ids = {c["id"] for c in held}
+        hints = wealthfolio.new_matches(accounts, wealthfolio.held_cards(conn, ids), saved_held, wealthfolio.declined(cfg),
+                                        wealthfolio.has_lines(conn, pid, ids), wealthfolio._last4(conn, pid))
     else:            # nothing matched yet: every account whose name plainly names a held card
         hints = wealthfolio.suggest(accounts, held)
     rows = []

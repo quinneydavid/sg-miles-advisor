@@ -366,7 +366,9 @@ def run_wealthfolio(conn, person):
         row = conn.execute("SELECT * FROM people WHERE id = %s", (person,)).fetchone()
         counts = wealthfolio.run_person(conn, row)
         said = {"wealthfolio lines new": counts["new"], "wealthfolio lines updated": counts["updated"],
-                "wealthfolio lines removed": counts["removed"]}
+                "wealthfolio lines removed": counts["removed"],
+                "wealthfolio accounts matched to a new card": counts.get("accounts matched to a new card", 0),
+                "wealthfolio held cards without an account": counts.get("held cards without an account", 0)}
         return {k: v for k, v in said.items() if v}
     except crypto.Unavailable:
         raise

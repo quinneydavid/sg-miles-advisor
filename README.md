@@ -329,7 +329,8 @@ On the Settings page, section Wealthfolio:
 4. "Save and import now" reads the transactions. With "Import on a schedule" ticked, every `ingest` run does it again
    (the compose file runs `ingest` every 15 minutes). `python -m cards wealthfolio --person <id>` runs it by hand.
 5. A card added later: each import lists the accounts again, and a card that has no account and no transactions yet is
-   matched by itself to the account whose name plainly names it. The import's counts then say "accounts matched to a
+   matched by itself to the account whose name plainly names it, carries its last 4 digits (as saved for the alerts),
+   or names only its bank when it is the one new card of that bank. The import's counts then say "accounts matched to a
    new card"; change it on Settings if it is wrong. An account saved as "not a card" is not matched to a card held at
    the time.
 

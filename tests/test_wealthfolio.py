@@ -178,7 +178,10 @@ class Conn(SettingsConn):
         elif s.startswith("SELECT name, mccs, source, channel FROM merchants"):
             self.rows = list(self.shops)
         elif s.startswith("SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY"):
-            self.rows = [{"card_id": c} for c in {v["card_id"] for v in self.lines.values() if v["person"] == args[0] and v["card_id"] in args[1]}]
+            self.rows = [{"card_id": c} for c in {v["card_id"] for v in self.lines.values() if v["person"] == args[0]
+                                                  and v["card_id"] in args[1] and v["statement_id"] != args[2]}]
+        elif s.startswith("SELECT c.id, c.name, c.bank_id FROM cards c WHERE c.id = ANY"):
+            self.rows = [dict(c, bank_id=c["id"].split("_")[0].replace("uob", "uob")) for c in self.cards if c["id"] in args[0]]
         elif s.startswith("SELECT c.id, c.name FROM cards c WHERE c.id = ANY"):
             self.rows = [c for c in self.cards if c["id"] in args[0]]
         elif s.startswith("SELECT * FROM people ORDER BY id"):
@@ -496,7 +499,7 @@ def test_ingest_runs_the_import_only_when_switched_on_and_never_raises(server):
     assert ingest.run_wealthfolio(conn, "alice") == {}                       # connected but not switched on
     config.put(conn, "wf_on", "1", "alice")
     config.put(conn, "wf_days", "400", "alice")
-    assert ingest.run_wealthfolio(conn, "alice") == {"wealthfolio lines new": 1}
+    assert ingest.run_wealthfolio(conn, "alice") == {"wealthfolio lines new": 1}   # both cards matched: nothing else to say
     config.put(conn, "wf_token", "revoked", "alice")
     assert ingest.run_wealthfolio(conn, "alice") == {"wealthfolio import failed": 1}
 
@@ -547,7 +550,8 @@ def test_connect_test_match_and_import_from_the_settings_page(server):
     cfg = config.load(conn, "alice")
     assert wf.mapping(cfg) == {"acc-1": "dbs_ww"} and cfg["wf_on"] == "1" and cfg["wf_days"] == "400"
     ok, said = setupweb.post_wealthfolio(conn, form(action="import", acct_0="acc-1", card_0="dbs_ww", wf_days="400", wf_on="1"), me)
-    assert ok and said == "Imported: 1 new, 0 updated, 0 removed, 1 without a category."
+    assert ok and said == ("Imported: 1 new, 0 updated, 0 removed, 1 without a category; 1 held card(s) without a Wealthfolio "
+                           "account (match them below).")
     assert "Last import" in setupweb.wealthfolio_section(conn, me)
 
 
@@ -737,3 +741,24 @@ def test_what_the_person_said_is_not_a_card_stays_so(server):
                           {"acc-1": "dbs_ww"}, {"acc-2": ["dbs_ww", "uob_pp"]}) == {"acc-2": "citi_r"}
     # nobody matched anything yet: nothing is matched by itself
     assert wf.new_matches([{"id": "acc-2", "name": "Citi Rewards", "type": "CASH"}], [{"id": "citi_r", "name": "Citi Rewards"}], {}) == {}
+
+
+
+def test_a_new_card_is_matched_by_its_last_four_digits_or_its_bank():
+    citi = {"id": "citi_r", "name": "Citi Rewards", "bank_id": "citi"}
+    ww = {"id": "dbs_ww", "name": "DBS Woman's World", "bank_id": "dbs"}
+    done = {"acc-1": "dbs_ww"}
+    acct = lambda i, name, t="CASH": {"id": i, "name": name, "type": t}
+    # the account carries the last 4 digits saved on Settings
+    assert wf.new_matches([acct("a", "Credit card 4321")], [ww, citi], done, last4={"4321": "citi_r"}) == {"a": "citi_r"}
+    # named only after the bank: the one new card of that bank
+    assert wf.new_matches([acct("a", "Citibank Card")], [ww, citi], done) == {"a": "citi_r"}
+    assert wf.new_matches([acct("a", "CITI")], [ww, citi], done) == {"a": "citi_r"}
+    # two accounts name the bank, or two new cards of it: not sure, left to the person
+    assert wf.new_matches([acct("a", "Citibank Card"), acct("b", "Citi Old")], [ww, citi], done) == {}
+    pm = {"id": "citi_pm", "name": "Citi PremierMiles", "bank_id": "citi"}
+    assert wf.new_matches([acct("a", "Citibank Card")], [ww, citi, pm], done) == {}
+    # Wealthfolio says which accounts are cards: a savings account named after the bank is not one
+    assert wf.new_matches([acct("a", "Citibank Savings", "CASH"), acct("c", "Other", "CREDIT_CARD")], [ww, citi], done) == {}
+    # a card with lines already (not a new card) is left alone; alert previews do not count (has_lines leaves them out)
+    assert wf.new_matches([acct("a", "Citibank Card")], [ww, citi], done, has_lines={"citi_r"}) == {}

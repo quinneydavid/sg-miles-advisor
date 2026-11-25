@@ -452,24 +452,51 @@ def declined(cfg):
     return d if isinstance(d, dict) else {}
 
 
-def new_matches(accounts, cards, amap, no=None, has_lines=()):
-    """Accounts to match by themselves: an account no card is matched to, whose name plainly names a held card that
-    has no account and no transactions yet (a card added after Wealthfolio was set up), for someone who already imports
-    a card from Wealthfolio. An account the person saved as "not a card" while that card was already held stays as
-    they left it. -> {account id: card id}"""
+# the words an account name may use for a bank (cards.bank_id -> words)
+BANK_WORDS = {"citi": {"citi", "citibank"}, "dbs": {"dbs", "posb"}, "uob": {"uob"}, "ocbc": {"ocbc"}, "maybank": {"maybank"},
+              "hsbc": {"hsbc"}, "sc": {"sc", "stanchart", "standard"}, "amex": {"amex", "american"}, "boc": {"boc"},
+              "cimb": {"cimb"}, "trust": {"trust"}}
+
+
+def new_matches(accounts, cards, amap, no=None, has_lines=(), last4=None):
+    """Accounts to match by themselves, for a held card that has no account and no transactions yet (a card added
+    after Wealthfolio was set up), for someone who already imports a card from Wealthfolio. An unmatched account is
+    that card's when, in this order:
+      - its name carries the card's last 4 digits (saved on Settings for the mail alerts: last4 {digits: card id});
+      - its name plainly names the card (suggest);
+      - its name names only the card's bank ("Citibank", "Citi card") and the card is the one new card of that bank,
+        and no other unmatched account names that bank.
+    An account the person saved as "not a card" while that card was already held stays as they left it.
+    cards: [{"id", "name", "bank_id"}]. -> {account id: card id}"""
     no = no or {}
     if not amap:
         return {}
     taken = set(amap.values()) | set(has_lines)
-    free_accounts = [a for a in accounts if a["id"] not in amap]
+    typed = any(a.get("type") == CARD_TYPE for a in accounts)
+    free_accounts = [a for a in accounts if a["id"] not in amap and (not typed or a.get("type") == CARD_TYPE)]
     free_cards = [c for c in cards if c["id"] not in taken]
     if not free_accounts or not free_cards:
         return {}
+    ok = lambda acct, card, out: card not in no.get(acct, ()) and card not in out.values() and acct not in out
     out = {}
-    for acct, card in suggest(free_accounts, free_cards).items():
-        if card in no.get(acct, ()) or card in out.values():
-            continue
-        out[acct] = card
+    ids = {c["id"] for c in free_cards}
+    for a in free_accounts:
+        for d in re.findall(r"(?<!\d)\d{4}(?!\d)", a.get("name") or ""):
+            card = (last4 or {}).get(d)
+            if card in ids and ok(a["id"], card, out):
+                out[a["id"]] = card
+                break
+    for acct, card in suggest([a for a in free_accounts if a["id"] not in out],
+                              [c for c in free_cards if c["id"] not in out.values()]).items():
+        if ok(acct, card, out):
+            out[acct] = card
+    words = lambda a: {w.lower() for w in re.findall(r"[A-Za-z]+", a.get("name") or "")}
+    for bank, said in BANK_WORDS.items():
+        accts = [a for a in free_accounts if a["id"] not in out and words(a) & said]
+        named = [a for a in free_accounts if words(a) & said]   # matched ones too: two Citi accounts = not sure
+        new = [c for c in free_cards if c.get("bank_id") == bank and c["id"] not in out.values()]
+        if len(accts) == 1 and len(named) == 1 and len(new) == 1 and ok(accts[0]["id"], new[0]["id"], out):
+            out[accts[0]["id"]] = new[0]["id"]
     return out
 
 
@@ -482,15 +509,38 @@ def refresh_matches(conn, pid, cfg, client, held):
         return {}
     if accounts:
         config.put(conn, "wf_accounts", json.dumps(accounts), pid)
-    cards = conn.execute("SELECT c.id, c.name FROM cards c WHERE c.id = ANY(%s) ORDER BY c.name", (list(held) or [""],)).fetchall()
+    cards = held_cards(conn, held)
     amap = mapping(cfg)
-    used = {r["card_id"] for r in conn.execute("SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY(%s)",
-                                               (pid, list(held) or [""])).fetchall()}
-    new = new_matches(accounts or known_accounts(cfg), cards, mapping(cfg, set(held)), declined(cfg), used)
+    new = new_matches(accounts or known_accounts(cfg), cards, mapping(cfg, set(held)), declined(cfg), has_lines(conn, pid, held),
+                      _last4(conn, pid))
     if new:
         amap.update(new)
         config.put(conn, "wf_map", json.dumps(amap), pid)
     return new
+
+
+def owner_of_other(person):
+    """Cards the person gave to another source (mail, a feeder): not expected to have a Wealthfolio account."""
+    return [c for c, src in pipeline.chosen(person).items() if src != "wealthfolio"]
+
+
+def held_cards(conn, held):
+    return conn.execute("SELECT c.id, c.name, c.bank_id FROM cards c WHERE c.id = ANY(%s) ORDER BY c.name", (list(held) or [""],)).fetchall()
+
+
+def has_lines(conn, pid, held):
+    """Held cards that already have transactions from a source (alert mails and screenshots are only a preview)."""
+    return {r["card_id"] for r in conn.execute(
+        "SELECT DISTINCT card_id FROM stmt_lines WHERE person = %s AND card_id = ANY(%s) AND statement_id <> %s",
+        (pid, list(held) or [""], f"alerts-{pid}")).fetchall()}
+
+
+def _last4(conn, pid):
+    from . import ingest
+    try:
+        return ingest.settings(conn, pid).get("last4") or {}
+    except Exception:
+        return {}
 
 
 def suggest_boost(label, cash):
@@ -638,6 +688,9 @@ def run_person(conn, person, cfg=None, today=None, client=None):
         counts["could not place"] = place(conn, lines)
         if matched:
             counts["accounts matched to a new card"] = len(matched)
+        left = held - set(amap.values()) - set(owner_of_other(person))
+        if left:
+            counts["held cards without an account"] = len(left)
         counts.update(store(conn, pid, lines, since, until, done, set(amap.values())))
         for card, day in close_days(lines).items():
             pipeline.set_close_day(conn, pid, card, day, "note")
