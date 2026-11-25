@@ -499,7 +499,7 @@ def test_ingest_runs_the_import_only_when_switched_on_and_never_raises(server):
     assert ingest.run_wealthfolio(conn, "alice") == {}                       # connected but not switched on
     config.put(conn, "wf_on", "1", "alice")
     config.put(conn, "wf_days", "400", "alice")
-    assert ingest.run_wealthfolio(conn, "alice") == {"wealthfolio lines new": 1}
+    assert ingest.run_wealthfolio(conn, "alice") == {"wealthfolio lines new": 1}   # both cards matched: nothing else to say
     config.put(conn, "wf_token", "revoked", "alice")
     assert ingest.run_wealthfolio(conn, "alice") == {"wealthfolio import failed": 1}
 
