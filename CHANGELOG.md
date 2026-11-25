@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.19
+- Wealthfolio matches a new card to its account in more cases:
+  - **Last 4 digits:** an account whose name carries the card's last 4 digits, as saved on Settings (for example "Credit card 4321").
+  - **Bank name:** an account named only after the bank ("Citibank", "Citi card"), when the card is the one new card of that bank and only one unmatched account names it.
+  - **Alert previews don't count:** a card's alert-mail and screenshot lines no longer make it look like a card that already has transactions.
+- The import's counts say how many held cards still have no Wealthfolio account, on Settings and in the job's log.
+
 ## 0.10.18
 - Wealthfolio picks up a card added later. Each import now lists Wealthfolio's accounts again; before, a new account showed only after "Save and test" was pressed on Settings. A held card with no account and no transactions yet is matched by itself to the account whose name plainly names it, for someone who already imports a card from Wealthfolio. Its purchases in the kept days come in on that run, earlier ones included. The import's counts say so, and Settings suggests the match too. An account saved as "not a card" is not matched to any card held at that time. Before, a card added after the first match had no suggestion at all and was matched only by hand.
 
